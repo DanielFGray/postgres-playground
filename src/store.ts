@@ -7,6 +7,7 @@ import {
   buildCreateSlice,
   asyncThunkCreator,
   SerializedError,
+  combineSlices,
 } from "@reduxjs/toolkit";
 import * as db from "./db";
 import { Result } from "./types";
@@ -15,7 +16,28 @@ const createSlice = buildCreateSlice({
   creators: { asyncThunk: asyncThunkCreator },
 });
 
-const queryReducer = createSlice({
+const uiSlice = createSlice({
+  name: "ui",
+  initialState: {
+    sidebarVisible: true,
+    previewVisible: false,
+  },
+  reducers: create => ({
+    sidebarToggled: create.reducer(state => {
+      state.sidebarVisible = !state.sidebarVisible;
+    }),
+    previewToggled: create.reducer(state => {
+      state.previewVisible = !state.previewVisible;
+    }),
+    queryExecuted: create.reducer(state => {
+      state.previewVisible = true;
+    }),
+  }),
+});
+
+export const { sidebarToggled, previewToggled } = uiSlice.actions;
+
+const querySlice = createSlice({
   name: "query",
   initialState: {
     query: null as null | string,
@@ -38,11 +60,15 @@ const queryReducer = createSlice({
     }),
 
     executeQuery: create.asyncThunk(
-      async (_, { getState }) => {
+      async (_, { getState, dispatch }) => {
         // @ts-ignore
         const { query } = getState().query;
-        const result = await db.query(query);
-        return result
+        try {
+          const result = await db.query(query);
+          return result;
+        } finally {
+          dispatch(uiSlice.actions.queryExecuted());
+        }
       },
       {
         pending: state => {
@@ -63,11 +89,10 @@ const queryReducer = createSlice({
   }),
 });
 
-export const { executeQuery, queryChanged } = queryReducer.actions;
+export const { executeQuery, queryChanged } = querySlice.actions;
 
-export const store = configureStore({
-  reducer: { query: queryReducer.reducer },
-});
+const rootReducer = combineSlices(uiSlice, querySlice);
+export const store = configureStore({ reducer: rootReducer });
 
 type RootState = ReturnType<typeof store.getState>;
 type AppDispatch = typeof store.dispatch;

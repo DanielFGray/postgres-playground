@@ -4,8 +4,12 @@ import "./tailwind.css";
 import { Provider } from "react-redux";
 import { store } from "./store";
 
-ReactDOM.createRoot(document.getElementById("appRoot")).render(
-  <Provider store={store}>
-    <App />
-  </Provider>,
-);
+document.addEventListener("DOMContentLoaded", function () {
+  const el = document.getElementById("appRoot");
+  if (!el) throw new Error("No appRoot element found");
+  ReactDOM.createRoot(el).render(
+    <Provider store={store}>
+      <App />
+    </Provider>,
+  );
+});
