@@ -23,6 +23,7 @@
     "classnames": "^2.5.1",
     "monaco-sql-languages": "^0.12.0-beta.12",
     "npm-run-all": "^4.1.5",
+    "pg-introspection": "^0.0.1-beta.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^9.1.0"

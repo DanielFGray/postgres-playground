@@ -8,9 +8,11 @@ import {
   asyncThunkCreator,
   SerializedError,
   combineSlices,
+  createSelector,
 } from "@reduxjs/toolkit";
 import * as db from "./db";
 import { Result } from "./types";
+import { DbSchema } from "./lib/introspection";
 
 const createSlice = buildCreateSlice({
   creators: { asyncThunk: asyncThunkCreator },
@@ -18,14 +20,17 @@ const createSlice = buildCreateSlice({
 
 const uiSlice = createSlice({
   name: "ui",
+
   initialState: {
-    sidebarVisible: true,
-    previewVisible: false,
+    previewVisible: true,
+    introspectionVisible: true,
   },
+
   reducers: create => ({
-    sidebarToggled: create.reducer(state => {
-      state.sidebarVisible = !state.sidebarVisible;
+    introspectionToggled: create.reducer(state => {
+      state.introspectionVisible = !state.introspectionVisible;
     }),
+
     previewToggled: create.reducer(state => {
       state.previewVisible = !state.previewVisible;
     }),
@@ -35,7 +40,7 @@ const uiSlice = createSlice({
   }),
 });
 
-export const { sidebarToggled, previewToggled } = uiSlice.actions;
+export const { previewToggled, filebarToggled, introspectionToggled } = uiSlice.actions;
 
 const querySlice = createSlice({
   name: "query",
@@ -44,6 +49,7 @@ const querySlice = createSlice({
     result: null as null | Result | Result[],
     plan: null as null | string,
     error: null as null | SerializedError,
+    introspection: null as null | Record<string, DbSchema>,
     pending: false,
   },
 
@@ -59,6 +65,12 @@ const querySlice = createSlice({
       state.query = action.payload;
     }),
 
+    introspectionRequested: create.asyncThunk(db.introspectDb, {
+      fulfilled: (state, action) => {
+        state.introspection = action.payload.schemas;
+      },
+    }),
+
     executeQuery: create.asyncThunk(
       async (_, { getState, dispatch }) => {
         // @ts-ignore
@@ -68,6 +80,7 @@ const querySlice = createSlice({
           return result;
         } finally {
           dispatch(uiSlice.actions.queryExecuted());
+          dispatch(querySlice.actions.introspectionRequested(null));
         }
       },
       {
