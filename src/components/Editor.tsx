@@ -59,7 +59,10 @@ select
           contextMenuGroupId: "2_commands",
           keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
           run(e) {
-            const query = e.getValue();
+            const model = e.getModel();
+            const selection = editor.getSelection();
+            const query = selection && model?.getValueInRange(selection) || model?.getValue();
+            console.log("Running query", query);
             dispatch(executeQuery(query));
           },
         });
