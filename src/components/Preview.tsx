@@ -4,8 +4,8 @@ import { Button, Error } from "./";
 
 export function Preview() {
   const previewVisible = useSelector(state => state.ui.previewVisible);
-  const result = useSelector(state => state.query.result);
-  const error = useSelector(state => state.query.error);
+  const result = useSelector(state => state.queries.result);
+  const error = useSelector(state => state.queries.error);
   const dispatch = useDispatch();
   return (
     <div className="fixed bottom-0 w-full backdrop-blur-sm">
@@ -17,9 +17,12 @@ export function Preview() {
           <>
             {error ? (
               // TODO: show what line it was on
-              <Error id="error_message">Error: {error.message}</Error>
+              <Error id="query_error_message">Error: {error.message}</Error>
             ) : result ? (
-              <div id="preview_container" className="max-h-[32dvh] overflow-auto space-y-2 p-2">
+              <div
+                id="preview_container"
+                className="max-h-[32dvh] space-y-2 overflow-auto p-2"
+              >
                 {result instanceof Array ? (
                   result.map(r => <ResultTable result={r} />)
                 ) : (
@@ -47,10 +50,10 @@ function ResultTable({ result }: { result: Result }) {
       </thead>
       <tbody>
         {result.rows.map(row => (
-          <tr className="odd:bg-primary-700/10">
-            {result.fields.map((f, i) => {
+          <tr className="odd:bg-white/50">
+            {result.fields.map(f => {
               const value = row[f.name];
-              return <RowValue value={value} />;
+              return <RowValue value={value} typeId={f.dataTypeID} />;
             })}
           </tr>
         ))}
@@ -59,9 +62,15 @@ function ResultTable({ result }: { result: Result }) {
   );
 }
 
-function RowValue({ value }: { value: any }) {
+function RowValue({ value, typeId }: { value: any; typeId }) {
   return (
-    <td className={typeof value === "number" ? "text-right" : "text-left"}>
+    <td
+      className={
+        typeof value === "number" || typeId === 1184
+          ? "text-right"
+          : "text-left"
+      }
+    >
       {typeof value === "string" ? (
         value
       ) : (

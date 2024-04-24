@@ -1,4 +1,7 @@
-import { PGlite } from "https://cdn.jsdelivr.net/npm/@electric-sql/pglite/dist/index.js";
+import {
+  types,
+  PGlite,
+} from "https://cdn.jsdelivr.net/npm/@electric-sql/pglite/dist/index.js";
 import { Result } from "./types";
 import {
   makeIntrospectionQuery,
@@ -6,12 +9,17 @@ import {
 } from "pg-introspection";
 import { processIntrospection } from "./lib/introspection";
 
-let db: null | PGlite = new PGlite();
-db.query('select 1')
+let db: PGlite = new PGlite();
+db.query("select 1").then(() => console.log("database loaded"));
 
-export async function query(query: string): Promise<Result> {
+const parsers = {
+  [types.TIMESTAMP]: value => value.toString(),
+  [types.TIMESTAMPTZ]: value => value.toString(),
+};
+
+export async function query(query: string, params?: any[]): Promise<Result> {
   if (!db) db = new PGlite();
-  const result = await db.exec(query);
+  const result = await db.exec(query, params, { parsers });
   return result;
 }
 
@@ -22,7 +30,7 @@ export async function freshQueryWithMigrations(
 ): Promise<Result> {
   return freshQueryContext(async db => {
     for (const m of migrations) {
-      await db.execute(m);
+      await db.execute(m, { parsers });
     }
     return await query(inputQuery, params);
   });
@@ -37,13 +45,19 @@ export async function freshQueryContext<T>(
 }
 
 export async function introspectDb() {
-  const {
-    rows: [{ introspection }],
-  }: Result = await db.query(makeIntrospectionQuery());
-  const { schemas } = processIntrospection(
-    parseIntrospectionResults(introspection),
-  );
-  // TODO: add a toggle to show/hide system schemas
-  const { pg_catalog, pg_toast, ...useful } = schemas;
-  return useful;
+try {
+    const {
+      rows: [{ introspection }],
+    }: Result = await db.query(makeIntrospectionQuery());
+    const result = processIntrospection(
+      parseIntrospectionResults(introspection),
+    );
+    // TODO: add a toggle to show/hide system schemas
+    console.log(result);
+    const { pg_catalog, pg_toast, ...useful } = result.schemas;
+    return useful;
+  } catch (e) {
+    console.error(e)
+    throw e
+  }
 }

@@ -22,11 +22,16 @@ const uiSlice = createSlice({
   name: "ui",
 
   initialState: {
+    filebarVisible: true,
     previewVisible: true,
     introspectionVisible: true,
   },
 
   reducers: create => ({
+    filebarToggled: create.reducer(state => {
+      state.filebarVisible = !state.filebarVisible;
+    }),
+
     introspectionToggled: create.reducer(state => {
       state.introspectionVisible = !state.introspectionVisible;
     }),
@@ -34,18 +39,42 @@ const uiSlice = createSlice({
     previewToggled: create.reducer(state => {
       state.previewVisible = !state.previewVisible;
     }),
-    queryExecuted: create.reducer(state => {
-      state.previewVisible = true;
-    }),
   }),
+
+  extraReducers: builder => {
+    builder.addCase(querySlice.actions.executeQuery.fulfilled, state => {
+      state.previewVisible = true;
+    });
+  },
 });
 
-export const { previewToggled, filebarToggled, introspectionToggled } = uiSlice.actions;
+export const { previewToggled, filebarToggled, introspectionToggled } =
+  uiSlice.actions;
+
+const defaultFiles = {
+  "0001-default.sql": `
+-- welcome to pgfiddle, a browser-based playground for postgresql
+drop table if exists nums cascade;
+
+create table nums as
+  select gen_random_uuid(), * from generate_series(1000, 10000);
+
+alter table nums add primary key(gen_random_uuid);
+create index on nums ((generate_series % 2000));
+analyze;
+
+select * from nums where (generate_series % 2000) = 0;
+
+explain (analyze, buffers)
+select * from nums where (generate_series % 2000) = 0;
+`.trim(),
+};
 
 const querySlice = createSlice({
-  name: "query",
+  name: "queries",
   initialState: {
-    query: null as null | string,
+    currentPath: "0001-default.sql",
+    files: defaultFiles as Record<string, string>,
     result: null as null | Result | Result[],
     plan: null as null | string,
     error: null as null | SerializedError,
@@ -53,35 +82,57 @@ const querySlice = createSlice({
     pending: false,
   },
 
+  selectors: {
+    getFileList: createSelector([state => state.files], files =>
+      Object.keys(files),
+    ),
+
+    getCurrentFile: createSelector(
+      [state => state.currentPath, state => state.files],
+      (path, files) => ({ path, value: files[path] }),
+    ),
+  },
+
   reducers: create => ({
-    queryExecuted: create.reducer<{ query: string; result: Result[] }>(
-      (state, action) => {
-        state.query = action.payload.query;
-        state.result = action.payload.result;
+    newFile: create.reducer<string>((state, action) => {
+      state.files[action.payload] = "";
+    }),
+
+    currentFileChanged: create.reducer<string>((state, action) => {
+      state.currentPath = action.payload;
+    }),
+
+    queryChanged: create.reducer<string>((state, action) => {
+      state.files[state.currentPath] = action.payload;
+    }),
+
+    introspectionRequested: create.asyncThunk(
+      async () => {
+        console.log("introspectionRequested");
+        return db.introspectDb();
+      },
+      {
+        rejected: (state, action) => {
+          console.error("introspectionRejected", action.payload);
+          state.introspection = action.payload;
+        },
+        fulfilled: (state, action) => {
+          console.log("introspectionFulfilled", action.payload);
+          state.introspection = action.payload;
+        },
       },
     ),
 
-    queryChanged: create.reducer<string>((state, action) => {
-      state.query = action.payload;
-    }),
-
-    introspectionRequested: create.asyncThunk(db.introspectDb, {
-      fulfilled: (state, action) => {
-        state.introspection = action.payload.schemas;
-      },
-    }),
-
     executeQuery: create.asyncThunk(
-      async (_, { getState, dispatch }) => {
-        // @ts-ignore
-        const { query } = getState().query;
-        try {
-          const result = await db.query(query);
-          return result;
-        } finally {
-          dispatch(uiSlice.actions.queryExecuted());
-          dispatch(querySlice.actions.introspectionRequested(null));
+      async (query: string | undefined, { getState, dispatch }) => {
+        const state = getState() as RootState;
+        if (!query?.trim()) {
+          query = state.queries.files[state.queries.currentPath];
         }
+        console.log("executing query", query);
+        const result = await db.query(query);
+        dispatch(querySlice.actions.introspectionRequested(null));
+        return result;
       },
       {
         pending: state => {
@@ -102,7 +153,9 @@ const querySlice = createSlice({
   }),
 });
 
-export const { executeQuery, queryChanged } = querySlice.actions;
+export const { executeQuery, queryChanged, newFile, currentFileChanged } =
+  querySlice.actions;
+export const { getCurrentFile, getFileList } = querySlice.selectors;
 
 const rootReducer = combineSlices(uiSlice, querySlice);
 export const store = configureStore({ reducer: rootReducer });

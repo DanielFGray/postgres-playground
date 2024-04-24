@@ -1,7 +1,7 @@
 import colors from 'tailwindcss/colors';
-import typography from '@tailwindcss/typography';
-import forms from '@tailwindcss/forms';
-import patterns from '@danielfgray/tw-heropatterns'
+// import typography from '@tailwindcss/typography';
+// import forms from '@tailwindcss/forms';
+// import patterns from '@danielfgray/tw-heropatterns'
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -9,7 +9,7 @@ export default {
     "./index.html",
     "./src/**/*.{html,js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
+  darkMode: 'media',
   theme: {
     extend: {
       colors: {
@@ -19,9 +19,8 @@ export default {
     },
   },
   plugins: [
-    typography,
-    forms({ strategy: 'class' }),
-    patterns,
-    // ...
+    // typography,
+    // forms({ strategy: 'class' }),
+    // patterns,
   ],
 }

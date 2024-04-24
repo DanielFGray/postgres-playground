@@ -1,10 +1,25 @@
+import { useRef } from "react";
+import clsx from "classnames";
 import * as monaco from "monaco-editor";
 import ReactMonaco from "@monaco-editor/react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import PGSQLWorker from "monaco-sql-languages/esm/languages/pgsql/pgsql.worker?worker";
-import { executeQuery, queryChanged, useDispatch } from "../store";
-import clsx from "classnames";
-import { useRef } from "react";
+import { languages } from "monaco-editor/esm/vs/editor/editor.api";
+import {
+  setupLanguageFeatures,
+  LanguageIdEnum,
+  CompletionService,
+  ICompletionItem,
+  SyntaxContextType,
+} from "monaco-sql-languages";
+
+import {
+  getCurrentFile,
+  executeQuery,
+  queryChanged,
+  useDispatch,
+  useSelector,
+} from "../store";
 
 // @ts-expect-error TODO: figure out how to type globalThis
 globalThis.MonacoEnvironment = {
@@ -16,36 +31,67 @@ globalThis.MonacoEnvironment = {
   },
 };
 
-const lastQuery =
-  typeof window !== "undefined" &&
-  window.localStorage.getItem("pgfiddle-last-query")
+const completionService: CompletionService = function (
+  model,
+  position,
+  completionContext,
+  suggestions, // syntax context info at caretPosition
+  entities, // tables, columns in the syntax context of the editor text
+) {
+  return new Promise((resolve, reject) => {
+    if (!suggestions) {
+      return Promise.resolve([]);
+    }
+    const { keywords, syntax } = suggestions;
+    const keywordsCompletionItems: ICompletionItem[] = keywords.map(kw => ({
+      label: kw,
+      kind: languages.CompletionItemKind.Keyword,
+      detail: "keyword",
+      sortText: "2" + kw,
+    }));
+
+    let syntaxCompletionItems: ICompletionItem[] = [];
+
+    syntax.forEach(item => {
+      if (item.syntaxContextType === SyntaxContextType.DATABASE) {
+        const databaseCompletions: ICompletionItem[] = []; // some completions about databaseName
+        syntaxCompletionItems = [
+          ...syntaxCompletionItems,
+          ...databaseCompletions,
+        ];
+      }
+      if (item.syntaxContextType === SyntaxContextType.TABLE) {
+        const tableCompletions: ICompletionItem[] = []; // some completions about tableName
+        syntaxCompletionItems = [...syntaxCompletionItems, ...tableCompletions];
+      }
+    });
+
+    resolve([...syntaxCompletionItems, ...keywordsCompletionItems]);
+  });
+};
+
+setupLanguageFeatures(LanguageIdEnum.PG, {
+  completionItems: {
+    enable: true,
+    completionService: completionService,
+  },
+});
 
 export function MonacoEditor({ className }: { className?: string }) {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>(null);
+  const currentFile = useSelector(getCurrentFile);
   const dispatch = useDispatch();
-
-  const defaultQuery = lastQuery || `
--- welcome to pgfiddle, a browser-based playground for postgresql
-select
-  'hello world' as message,
-  generate_series(20, 200, 50)
-;
-explain analyze
-select
-  'hello world' as message,
-  generate_series(20, 200, 50)
-;
-`.trim();
 
   return (
     <ReactMonaco
-      className={clsx(className)}
+      className={clsx("overflow-clip", className)}
       defaultLanguage="pgsql"
-      defaultValue={defaultQuery}
+      path={currentFile.path}
+      defaultValue={currentFile.value}
       options={{
         automaticLayout: true,
         minimap: { enabled: false },
-        fontSize: 18,
+        fontSize: 15,
       }}
       onMount={(editor, monaco) => {
         dispatch(queryChanged(editor.getValue()));

@@ -137,7 +137,7 @@ function processViews(
     introspection.classes
       .filter(view => view.relnamespace === schemaId && view.relkind === "v")
       .map(view => {
-        const { description } = getDescription(view);
+        const description = getDescription(view);
         return [
           view.relname,
           {
@@ -176,7 +176,7 @@ function processTables(
         const columns = processColumns(table.oid, {
           introspection,
         });
-        const { description } = getDescription(table);
+        const description = getDescription(table);
         const references = processReferences(table.oid, {
           introspection,
         });
@@ -232,7 +232,7 @@ function processColumns(
               ),
             )
           : getTypeName(type);
-        const { description } = getDescription(column);
+        const description = getDescription(column);
         return [
           name,
           {

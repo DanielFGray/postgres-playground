@@ -5,20 +5,20 @@ export const Error = classed("div", "rounded-md bg-red-100 p-2 text-red-800");
 
 export const Button = classed(
   "button",
-  "border-0 font-bold tracking-wide shadow-md shadow-primary-300 transition-all duration-200 dark:shadow-black",
+  "border-0 font-bold tracking-wide shadow-md shadow-primary-400/50 transition-all duration-200",
   "focus:outline-primary-700 focus:ring-2 focus:ring-primary-300",
-  "hover:shadow-sm focus:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
+  "hover:shadow focus:shadow-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-30 disabled:shadow-none",
   {
     variants: {
       color: {
         danger: "bg-red-200 text-red-900 hover:bg-red-300",
         primary: "bg-primary-600 text-primary-100 hover:bg-primary-500",
-        default: "bg-primary-100 text-primary-900 hover:bg-primary-50",
+        default: "bg-primary-50 text-primary-900 hover:bg-primary-50",
       },
       size: {
         sm: "rounded-sm p-1 text-sm",
         md: "text-md rounded p-2",
-        lg: "rounded-lg p-2 text-lg",
+        lg: "rounded px-4 py-2 text-lg",
       },
     },
     defaultVariants: { color: "default", size: "md" },

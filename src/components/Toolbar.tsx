@@ -4,11 +4,15 @@ import { Button, Spinner } from "./";
 
 export function Toolbar({ className }: { className?: string }) {
   const dispatch = useDispatch();
-  const { pending } = useSelector(state => state.query);
+  const { pending } = useSelector(state => state.queries);
   return (
-    <div className={clsx("flex flex-row gap-2 p-2", className)}>
+    <div className={clsx("flex flex-row gap-2 bg-primary-100 p-2", className)}>
       <span className="grow">
-        <Button onClick={() => dispatch(executeQuery(null))} disabled={pending}>
+        <Button
+          size="lg"
+          onClick={() => dispatch(executeQuery(null))}
+          disabled={pending}
+        >
           {pending ? (
             <div className="inline-flex h-4 w-4 items-center">
               <Spinner />
@@ -18,8 +22,8 @@ export function Toolbar({ className }: { className?: string }) {
         </Button>
       </span>
       <span className="shrink space-x-2">
-        <Button disabled>Save</Button>
-        <Button disabled>Share</Button>
+        <Button size="lg" disabled>Save</Button>
+        <Button size="lg" disabled>Share</Button>
       </span>
     </div>
   );
