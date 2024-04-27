@@ -84,7 +84,7 @@ const querySlice = createSlice({
 
   selectors: {
     getFileList: createSelector([state => state.files], files =>
-      Object.keys(files),
+      Object.keys(files).sort((a, b) => a.localeCompare(b))
     ),
 
     getCurrentFile: createSelector(
