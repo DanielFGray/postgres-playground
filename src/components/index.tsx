@@ -1,7 +1,7 @@
 import clsx from "classnames";
 import { classed } from "@tw-classed/react";
 
-export const Error = classed("div", "rounded-md bg-red-100 p-2 text-red-800");
+export const Error = classed("div", "bg-red-100 p-2 text-red-800");
 
 export const Button = classed(
   "button",
@@ -16,9 +16,9 @@ export const Button = classed(
         default: "bg-primary-50 text-primary-900 hover:bg-primary-50",
       },
       size: {
-        sm: "rounded-sm p-1 text-sm",
-        md: "text-md rounded p-2",
-        lg: "rounded px-4 py-2 text-lg",
+        sm: "p-1 text-sm",
+        md: "text-md p-2",
+        lg: "px-4 py-2 text-lg",
       },
     },
     defaultVariants: { color: "default", size: "md" },
