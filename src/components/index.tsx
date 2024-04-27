@@ -1,10 +1,11 @@
 import clsx from "classnames";
 import { classed } from "@tw-classed/react";
+import { Button as AriaButton } from 'react-aria-components'
 
 export const Error = classed("div", "bg-red-100 p-2 text-red-800");
 
 export const Button = classed(
-  "button",
+  AriaButton,
   "border-0 font-bold tracking-wide shadow-md shadow-primary-400/50 transition-all duration-200",
   "focus:outline-primary-700 focus:ring-2 focus:ring-primary-300",
   "hover:shadow focus:shadow-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-30 disabled:shadow-none",
