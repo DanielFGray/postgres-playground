@@ -11,7 +11,7 @@ export function Preview() {
     <div className="fixed bottom-0 w-full backdrop-blur-sm">
       <div className="bg-primary-100/80">
         <div className="border-b border-primary-300 p-2">
-          <Button onClick={() => dispatch(previewToggled())}>Result</Button>
+          <Button onPress={() => dispatch(previewToggled())}>Result</Button>
         </div>
         {previewVisible && (
           <>

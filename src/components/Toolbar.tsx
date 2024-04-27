@@ -11,8 +11,8 @@ export function Toolbar({ className }: { className?: string }) {
       <Group className="grow">
         <Button
           size="lg"
-          onClick={() => dispatch(executeQuery(null))}
-          disabled={pending}
+          onPress={() => dispatch(executeQuery())}
+          isDisabled={pending}
         >
           {pending ? (
             <div className="inline-flex h-4 w-4 items-center">
@@ -23,8 +23,8 @@ export function Toolbar({ className }: { className?: string }) {
         </Button>
       </Group>
       <Group className="shrink space-x-2">
-        <Button size="lg" disabled>Save</Button>
-        <Button size="lg" disabled>Share</Button>
+        <Button size="lg" isDisabled>Save</Button>
+        <Button size="lg" isDisabled>Share</Button>
       </Group>
     </AriaToolbar>
   );
