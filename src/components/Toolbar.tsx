@@ -1,13 +1,14 @@
 import clsx from "classnames";
 import { executeQuery, useDispatch, useSelector } from "../store";
 import { Button, Spinner } from "./";
+import { Toolbar as AriaToolbar, Group } from 'react-aria-components'
 
 export function Toolbar({ className }: { className?: string }) {
   const dispatch = useDispatch();
   const { pending } = useSelector(state => state.queries);
   return (
-    <div className={clsx("flex flex-row gap-2 bg-primary-100 p-2", className)}>
-      <span className="grow">
+    <AriaToolbar className={clsx("flex flex-row gap-2 bg-primary-100 p-2", className)}>
+      <Group className="grow">
         <Button
           size="lg"
           onClick={() => dispatch(executeQuery(null))}
@@ -20,11 +21,11 @@ export function Toolbar({ className }: { className?: string }) {
           ) : null}
           Run
         </Button>
-      </span>
-      <span className="shrink space-x-2">
+      </Group>
+      <Group className="shrink space-x-2">
         <Button size="lg" disabled>Save</Button>
         <Button size="lg" disabled>Share</Button>
-      </span>
-    </div>
+      </Group>
+    </AriaToolbar>
   );
 }
