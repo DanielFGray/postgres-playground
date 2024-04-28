@@ -154,7 +154,7 @@ function processViews(
 
 type DbTable = {
   name: string;
-  columns: Record<string, DbColumn>;
+  columns: Array<DbColumn>;
   indexes: Record<string, DbIndex>;
   references: Record<string, DbReference>;
   description: string | undefined;
@@ -213,42 +213,39 @@ function processColumns(
   }: {
     introspection: PgIntrospection;
   },
-): Record<string, DbColumn> {
-  return Object.fromEntries(
-    introspection.attributes
-      .filter(column => column.attrelid === tableId)
-      .map(column => {
-        const name = column.attname;
-        const type = column.getType();
-        if (!type)
-          throw new Error(`couldn't find type for column ${column.attname}`);
-        const isArray =
-          typeof column.attndims === "number" && column.attndims > 0;
-        const typeName = isArray
-          ? getTypeName(
-              invariant(
-                type.getElemType(),
-                `elemType didn't return anything for ${column.getClass()?.relname}.${column.attname}`,
-              ),
-            )
-          : getTypeName(type);
-        const description = getDescription(column);
-        return [
-          name,
-          {
-            name,
-            identity: column.attidentity,
-            type: typeName,
-            nullable: !column.attnotnull,
-            hasDefault: column.atthasdef ?? false,
-            generated: column.attgenerated === "s" ? "STORED" : false,
-            isArray,
-            description: description,
-            // original: column,
-          },
-        ];
-      }),
-  );
+): Array<DbColumn> {
+  return introspection.attributes
+    .filter(column => column.attrelid === tableId)
+    .map(column => {
+      const name = column.attname;
+      const type = column.getType();
+      if (!type)
+        throw new Error(`couldn't find type for column ${column.attname}`);
+      const isArray =
+        typeof column.attndims === "number" && column.attndims > 0;
+      const typeName = isArray
+        ? getTypeName(
+            invariant(
+              type.getElemType(),
+              `elemType didn't return anything for ${column.getClass()?.relname}.${column.attname}`,
+            ),
+          )
+        : getTypeName(type);
+      const description = getDescription(column);
+      return {
+        name,
+        identity: column.attidentity,
+        type: typeName,
+        nullable: !column.attnotnull,
+        hasDefault: column.atthasdef ?? false,
+        generated: column.attgenerated === "s" ? "STORED" : false,
+        isArray,
+        description: description,
+        attnum: column.attnum,
+        // original: column,
+      };
+    })
+    .sort((a, b) => a.attnum - b.attnum);
 }
 
 export type DbIndex = {
