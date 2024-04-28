@@ -108,12 +108,10 @@ const querySlice = createSlice({
 
     introspectionRequested: create.asyncThunk(
       async () => {
-        console.log("introspectionRequested");
         return db.introspectDb();
       },
       {
         rejected: (state, action) => {
-          console.error("introspectionRejected", action.payload);
           state.introspection = action.payload;
         },
         fulfilled: (state, action) => {
