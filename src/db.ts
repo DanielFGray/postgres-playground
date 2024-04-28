@@ -45,19 +45,13 @@ export async function freshQueryContext<T>(
 }
 
 export async function introspectDb() {
-try {
+  try {
     const {
       rows: [{ introspection }],
     }: Result = await db.query(makeIntrospectionQuery());
-    const result = processIntrospection(
-      parseIntrospectionResults(introspection),
-    );
-    // TODO: add a toggle to show/hide system schemas
-    console.log(result);
-    const { pg_catalog, pg_toast, ...useful } = result.schemas;
-    return useful;
+    return new Introspection(parseIntrospectionResults(introspection)).schemas;
   } catch (e) {
-    console.error(e)
-    throw e
+    console.error(e);
+    throw e;
   }
 }

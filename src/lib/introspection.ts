@@ -6,25 +6,6 @@ import {
 import { groupWith, invariant } from "./";
 import { PgEntity } from "pg-introspection/dist/introspection";
 
-export type DbIntrospection = {
-  name: string;
-  schemas: Record<string, DbSchema>;
-};
-
-export function processIntrospection(
-  introspection: PgIntrospection,
-): DbIntrospection {
-  return {
-    name: introspection.database.datname,
-    schemas: Object.fromEntries(
-      introspection.namespaces.map(schema => [
-        schema.nspname,
-        processSchema(schema, { introspection }),
-      ]),
-    ),
-  };
-}
-
 export type DbSchema = {
   name: string;
   views: Record<string, DbView>;
@@ -32,23 +13,6 @@ export type DbSchema = {
   functions: Record<string, DbFunction>;
   types: Record<string, DbType>;
 };
-
-function processSchema(
-  schema: PgNamespace,
-  {
-    introspection,
-  }: {
-    introspection: PgIntrospection;
-  },
-): DbSchema {
-  return {
-    name: schema.nspname,
-    views: processViews(schema.oid, { introspection }),
-    tables: processTables(schema.oid, { introspection }),
-    functions: processFunctions(schema.oid, { introspection }),
-    types: processTypes(schema.oid, { introspection }),
-  };
-}
 
 type DbDomain = { kind: "domain"; name: string; type: string };
 type DbEnum = { kind: "enum"; name: string; values: Array<string> };
@@ -59,98 +23,12 @@ type DbComposite = {
 };
 type DbType = DbDomain | DbEnum | DbComposite;
 
-function processTypes(
-  schemaId: string,
-  {
-    introspection,
-  }: {
-    introspection: PgIntrospection;
-  },
-): Record<string, DbType> {
-  const domains = introspection.types
-    .filter(t => t.typtype === "d" && t.typnamespace === schemaId)
-    .map(t => {
-      return {
-        name: t.typname,
-        kind: "domain",
-        type: invariant(
-          t.typoutput,
-          `missing typoutput for ${t.typname}`,
-        ).replace("out$", ""),
-      } satisfies DbDomain;
-    });
-
-  const enums = introspection.types
-    .filter(t => t.typtype === "e" && t.typnamespace === schemaId)
-    .map(t => {
-      const values = t.getEnumValues();
-      if (!values)
-        throw new Error("could not find enum values for ${t.typname}");
-      return {
-        name: t.typname,
-        kind: "enum",
-        values: values.map(x => x.enumlabel),
-      } satisfies DbEnum;
-    });
-
-  const composites = introspection.classes
-    .filter(cls => cls.relnamespace === schemaId && cls.relkind === "c")
-    .map(t => {
-      return {
-        name: t.relname,
-        kind: "composite",
-        columns: t.getAttributes().map(a => {
-          const type = a.getType();
-          if (!type)
-            throw new Error(
-              `could not find type for composite attribute ${t.relname}`,
-            );
-          return { name: a.attname, type: getTypeName(type) };
-        }),
-      } satisfies DbComposite;
-    });
-
-  const types: Record<string,DbType> = groupWith(
-    (_, b) => b,
-    t => t.name,
-    [...domains, ...enums, ...composites],
-  );
-  return types
-}
-
 type DbView = {
   name: string;
-  columns: Record<string, DbColumn>;
+  columns: Array<DbColumn>;
   constraints: Record<string, DbReference>;
   description: string | undefined;
 };
-
-function processViews(
-  schemaId: string,
-  {
-    introspection,
-  }: {
-    introspection: PgIntrospection;
-  },
-): Record<string, DbView> {
-  const views = Object.fromEntries(
-    introspection.classes
-      .filter(view => view.relnamespace === schemaId && view.relkind === "v")
-      .map(view => {
-        const description = getDescription(view);
-        return [
-          view.relname,
-          {
-            name: view.relname, // TODO: any other attributes specific to views? references? pseudo-FKs?
-            columns: processColumns(view.oid, { introspection }),
-            constraints: processReferences(view.oid, { introspection }),
-            description,
-          },
-        ];
-      }),
-  );
-  return views;
-}
 
 type DbTable = {
   name: string;
@@ -159,41 +37,6 @@ type DbTable = {
   references: Record<string, DbReference>;
   description: string | undefined;
 };
-
-function processTables(
-  schemaId: string,
-  {
-    introspection,
-  }: {
-    introspection: PgIntrospection;
-  },
-): Record<string, DbTable> {
-  return Object.fromEntries(
-    introspection.classes
-      .filter(table => table.relnamespace === schemaId && table.relkind === "r")
-      .map(table => {
-        const name = table.relname;
-        const columns = processColumns(table.oid, {
-          introspection,
-        });
-        const description = getDescription(table);
-        const references = processReferences(table.oid, {
-          introspection,
-        });
-        const indexes = processIndexes(table.oid, { introspection });
-        return [
-          name,
-          {
-            name,
-            columns,
-            indexes,
-            references,
-            description,
-          },
-        ];
-      }),
-  );
-}
 
 export type DbColumn = {
   name: string;
@@ -206,48 +49,6 @@ export type DbColumn = {
   description: string | undefined;
 };
 
-function processColumns(
-  tableId: string,
-  {
-    introspection,
-  }: {
-    introspection: PgIntrospection;
-  },
-): Array<DbColumn> {
-  return introspection.attributes
-    .filter(column => column.attrelid === tableId)
-    .map(column => {
-      const name = column.attname;
-      const type = column.getType();
-      if (!type)
-        throw new Error(`couldn't find type for column ${column.attname}`);
-      const isArray =
-        typeof column.attndims === "number" && column.attndims > 0;
-      const typeName = isArray
-        ? getTypeName(
-            invariant(
-              type.getElemType(),
-              `elemType didn't return anything for ${column.getClass()?.relname}.${column.attname}`,
-            ),
-          )
-        : getTypeName(type);
-      const description = getDescription(column);
-      return {
-        name,
-        identity: column.attidentity,
-        type: typeName,
-        nullable: !column.attnotnull,
-        hasDefault: column.atthasdef ?? false,
-        generated: column.attgenerated === "s" ? "STORED" : false,
-        isArray,
-        description: description,
-        attnum: column.attnum,
-        // original: column,
-      };
-    })
-    .sort((a, b) => a.attnum - b.attnum);
-}
-
 export type DbIndex = {
   name: string;
   colnames: Array<string>;
@@ -256,52 +57,6 @@ export type DbIndex = {
   option: Array<number> | null;
   type: string | null;
 };
-
-function processIndexes(
-  tableId: string,
-  {
-    introspection,
-  }: {
-    introspection: PgIntrospection;
-  },
-): Record<string, DbIndex> {
-  return Object.fromEntries(
-    introspection.indexes
-      .filter(index => index.indrelid === tableId)
-      .map(index => {
-        const cls = index.getIndexClass();
-        if (!cls)
-          throw new Error(
-            `failed to find index class for index ${index.indrelid}`,
-          );
-
-        const am = cls.getAccessMethod();
-        if (!am)
-          throw new Error(
-            `failed to find access method for index ${cls.relname}`,
-          );
-
-        const keys = index.getKeys();
-        if (!keys)
-          throw new Error(`failed to find keys for index ${cls.relname}`);
-
-        const colnames = keys.filter(Boolean).map(a => a.attname);
-        const name = cls.relname;
-        const option = index.indoption;
-        return [
-          name,
-          {
-            name,
-            isUnique: index.indisunique,
-            isPrimary: index.indisprimary,
-            option,
-            type: am.amname,
-            colnames,
-          } satisfies DbIndex,
-        ];
-      }),
-  );
-}
 
 type DbReference = {
   name: string;
@@ -313,36 +68,266 @@ type DbReference = {
   };
 };
 
-function processReferences(
-  tableId: string,
-  { introspection }: { introspection: PgIntrospection },
-): Record<string, DbReference> {
-  return Object.fromEntries(
-    introspection.constraints
-      .filter(c => c.conrelid === tableId && c.contype === "f")
-      .map(constraint => {
-        const fkeyClass = constraint.getForeignClass();
-        if (!fkeyClass) throw new Error();
-        const fkeyNsp = fkeyClass.getNamespace();
-        if (!fkeyNsp) throw new Error();
-        const fkeyAttr = constraint.getForeignAttributes();
-        if (!fkeyAttr) throw new Error();
-        const kind = fkeyClass.relkind;
-        const name = constraint.conname;
-        return [
-          name,
-          {
-            name,
-            refPath: {
-              kind,
-              schemas: fkeyNsp.nspname,
-              name: fkeyClass.relname,
-              columns: fkeyAttr.map(a => a.attname),
+export class DbIntrospection {
+  #introspection: PgIntrospection;
+  name: string;
+  schemas: Record<string, DbSchema>;
+
+  constructor(introspection: PgIntrospection) {
+    this.#introspection = introspection;
+    this.name = introspection.database.datname;
+    this.schemas = Object.fromEntries(
+      introspection.namespaces.map(schema => [
+        schema.nspname,
+        this.processSchema(schema),
+      ]),
+    );
+  }
+
+  processSchema(schema: PgNamespace): DbSchema {
+    return {
+      name: schema.nspname,
+      types: this.processTypes(schema.oid),
+      functions: this.processFunctions(schema.oid),
+      tables: this.processTables(schema.oid),
+      views: this.processViews(schema.oid),
+    };
+  }
+
+  processTypes(schemaId: string): Record<string, DbType> {
+    const domains = this.#introspection.types
+      .filter(t => t.typtype === "d" && t.typnamespace === schemaId)
+      .map(t => {
+        return {
+          name: t.typname,
+          kind: "domain",
+          type: invariant(
+            t.typoutput,
+            `missing typoutput for ${t.typname}`,
+          ).replace("out$", ""),
+        } satisfies DbDomain;
+      });
+
+    const enums = this.#introspection.types
+      .filter(t => t.typtype === "e" && t.typnamespace === schemaId)
+      .map(t => {
+        const values = t.getEnumValues();
+        if (!values)
+          throw new Error("could not find enum values for ${t.typname}");
+        return {
+          name: t.typname,
+          kind: "enum",
+          values: values.map(x => x.enumlabel),
+        } satisfies DbEnum;
+      });
+
+    const composites = this.#introspection.classes
+      .filter(cls => cls.relnamespace === schemaId && cls.relkind === "c")
+      .map(t => {
+        return {
+          name: t.relname,
+          kind: "composite",
+          columns: t.getAttributes().map(a => {
+            const type = a.getType();
+            if (!type)
+              throw new Error(
+                `could not find type for composite attribute ${t.relname}`,
+              );
+            return { name: a.attname, type: getTypeName(type) };
+          }),
+        } satisfies DbComposite;
+      });
+
+    const types: Record<string, DbType> = groupWith(
+      (_, b) => b,
+      t => t.name,
+      [...domains, ...enums, ...composites],
+    );
+    return types;
+  }
+
+  processViews(schemaId: string): Record<string, DbView> {
+    const views = Object.fromEntries(
+      this.#introspection.classes
+        .filter(view => view.relnamespace === schemaId && view.relkind === "v")
+        .map(view => {
+          const description = getDescription(view);
+          return [
+            view.relname,
+            {
+              name: view.relname, // TODO: any other attributes specific to views? references? pseudo-FKs?
+              columns: this.processColumns(view.oid),
+              constraints: this.processReferences(view.oid),
+              description,
             },
-          } satisfies DbReference,
-        ];
-      }),
-  );
+          ];
+        }),
+    );
+    return views;
+  }
+
+  processTables(schemaId: string): Record<string, DbTable> {
+    return Object.fromEntries(
+      this.#introspection.classes
+        .filter(table => table.relnamespace === schemaId && table.relkind === "r")
+        .map(table => {
+          const name = table.relname;
+          const columns = this.processColumns(table.oid);
+          const description = getDescription(table);
+          const references = this.processReferences(table.oid);
+          const indexes = this.processIndexes(table.oid);
+          return [
+            name,
+            {
+              name,
+              columns,
+              indexes,
+              references,
+              description,
+            },
+          ];
+        }),
+    );
+  }
+
+  processColumns(tableId: string): Array<DbColumn> {
+    return this.#introspection.attributes
+      .filter(column => column.attrelid === tableId)
+      .map(column => {
+        const name = column.attname;
+        const type = column.getType();
+        if (!type)
+          throw new Error(`couldn't find type for column ${column.attname}`);
+        const isArray =
+          typeof column.attndims === "number" && column.attndims > 0;
+        const typeName = isArray
+          ? getTypeName(
+              invariant(
+                type.getElemType(),
+                `elemType didn't return anything for ${column.getClass()?.relname}.${column.attname}`,
+              ),
+            )
+          : getTypeName(type);
+        const description = getDescription(column);
+        return {
+          name,
+          identity: column.attidentity,
+          type: typeName,
+          nullable: !column.attnotnull,
+          hasDefault: column.atthasdef ?? false,
+          generated: column.attgenerated === "s" ? "STORED" : false,
+          isArray,
+          description: description,
+          attnum: column.attnum,
+          // original: column,
+        };
+      })
+      .sort((a, b) => a.attnum - b.attnum);
+  }
+
+  processIndexes(tableId: string): Record<string, DbIndex> {
+    return Object.fromEntries(
+      this.#introspection.indexes
+        .filter(index => index.indrelid === tableId)
+        .map(index => {
+          const cls = index.getIndexClass();
+          if (!cls)
+            throw new Error(
+              `failed to find index class for index ${index.indrelid}`,
+            );
+
+          const am = cls.getAccessMethod();
+          if (!am)
+            throw new Error(
+              `failed to find access method for index ${cls.relname}`,
+            );
+
+          const keys = index.getKeys();
+          if (!keys)
+            throw new Error(`failed to find keys for index ${cls.relname}`);
+
+          const colnames = keys.filter(Boolean).map(a => a.attname);
+          const name = cls.relname;
+          const option = index.indoption;
+          return [
+            name,
+            {
+              name,
+              isUnique: index.indisunique,
+              isPrimary: index.indisprimary,
+              option,
+              type: am.amname,
+              colnames,
+            } satisfies DbIndex,
+          ];
+        }),
+    );
+  }
+
+  processReferences(tableId: string): Record<string, DbReference> {
+    return Object.fromEntries(
+      this.#introspection.constraints
+        .filter(c => c.conrelid === tableId && c.contype === "f")
+        .map(constraint => {
+          const fkeyClass = constraint.getForeignClass();
+          if (!fkeyClass) throw new Error();
+          const fkeyNsp = fkeyClass.getNamespace();
+          if (!fkeyNsp) throw new Error();
+          const fkeyAttr = constraint.getForeignAttributes();
+          if (!fkeyAttr) throw new Error();
+          const kind = fkeyClass.relkind;
+          const name = constraint.conname;
+          return [
+            name,
+            {
+              name,
+              refPath: {
+                kind,
+                schemas: fkeyNsp.nspname,
+                name: fkeyClass.relname,
+                columns: fkeyAttr.map(a => a.attname),
+              },
+            } satisfies DbReference,
+          ];
+        }),
+    );
+  }
+
+  processFunctions(schemaId: string): Record<string, DbFunction> {
+    return Object.fromEntries(
+      this.#introspection.procs
+        .filter(proc => proc.pronamespace === schemaId)
+        .map(proc => {
+          const type = proc.getReturnType();
+          if (!type)
+            throw new Error(`couldn't find type for proc ${proc.proname}`);
+          const volatility = {
+            i: "immutable",
+            s: "stable",
+            v: "volatile",
+          }[proc.provolatile ?? "v"] as "immutable" | "stable" | "volatile";
+          return [
+            proc.proname,
+            {
+              returnType: getTypeName(type),
+              volatility,
+              args: !proc.proargnames
+                ? []
+                : proc.getArguments().map((a, i) => {
+                    const argName = proc.proargnames?.[i] ?? i + 1;
+                    return [
+                      argName,
+                      {
+                        type: getTypeName(a.type),
+                        hasDefault: a.hasDefault,
+                      },
+                    ];
+                  }),
+            } satisfies DbFunction,
+          ];
+        }),
+    );
+  }
 }
 
 type DbFunction = {
@@ -351,55 +336,12 @@ type DbFunction = {
   volatility: "immutable" | "stable" | "volatile";
 };
 
-function processFunctions(
-  schemaId: string,
-  {
-    introspection,
-  }: {
-    introspection: PgIntrospection;
-  },
-): Record<string, DbFunction> {
-  return Object.fromEntries(
-    introspection.procs
-      .filter(proc => proc.pronamespace === schemaId)
-      .map(proc => {
-        const type = proc.getReturnType();
-        if (!type)
-          throw new Error(`couldn't find type for proc ${proc.proname}`);
-        const volatility = {
-          i: "immutable",
-          s: "stable",
-          v: "volatile",
-        }[proc.provolatile ?? "v"] as "immutable" | "stable" | "volatile";
-        return [
-          proc.proname,
-          {
-            returnType: getTypeName(type),
-            volatility,
-            args: !proc.proargnames
-              ? []
-              : proc.getArguments().map((a, i) => {
-                  const argName = proc.proargnames?.[i] ?? i + 1;
-                  return [
-                    argName,
-                    {
-                      type: getTypeName(a.type),
-                      hasDefault: a.hasDefault,
-                    },
-                  ];
-                }),
-          } satisfies DbFunction,
-        ];
-      }),
-  );
-}
-
 function getTypeName(type: PgType) {
   return [type.getNamespace()?.nspname, type.typname].join(".");
 }
 
 function getDescription(entity: PgEntity) {
-  if ('getDescription' in entity) {
+  if ("getDescription" in entity) {
     return entity.getDescription();
   }
 }

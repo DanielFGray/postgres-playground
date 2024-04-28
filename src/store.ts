@@ -117,8 +117,9 @@ const querySlice = createSlice({
           state.introspection = action.payload;
         },
         fulfilled: (state, action) => {
-          console.log("introspectionFulfilled", action.payload);
-          state.introspection = action.payload;
+          // TODO: add a toggle for showing/hiding system schemas?
+          const { pg_catalog, pg_toast, ...useful } = action.payload;
+          state.introspection = useful;
         },
       },
     ),
