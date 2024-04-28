@@ -70,6 +70,16 @@ select * from nums where (generate_series % 2000) = 0;
 `.trim(),
 };
 
+const executeQueryThunk = async (query: string | undefined, { getState, dispatch }) => {
+  const state = getState() as RootState
+  if (!query?.trim()) {
+    query = state.queries.files[state.queries.currentPath];
+  }
+  const result = await db.query(query);
+  dispatch(querySlice.actions.introspectionRequested(null));
+  return result;
+}
+
 const querySlice = createSlice({
   name: "queries",
   initialState: {
@@ -106,49 +116,32 @@ const querySlice = createSlice({
       state.files[state.currentPath] = action.payload;
     }),
 
-    introspectionRequested: create.asyncThunk(
-      async () => {
-        return db.introspectDb();
+    introspectionRequested: create.asyncThunk(db.introspectDb, {
+      rejected: (state, action) => {
+        state.introspection = action.payload;
       },
-      {
-        rejected: (state, action) => {
-          state.introspection = action.payload;
-        },
-        fulfilled: (state, action) => {
-          // TODO: add a toggle for showing/hiding system schemas?
-          const { pg_catalog, pg_toast, ...useful } = action.payload;
-          state.introspection = useful;
-        },
+      fulfilled: (state, action) => {
+        // TODO: add a toggle for showing/hiding system schemas?
+        const { pg_catalog, pg_toast, ...useful } = action.payload;
+        state.introspection = useful;
       },
-    ),
+    }),
 
-    executeQuery: create.asyncThunk(
-      async (query: string | undefined, { getState, dispatch }) => {
-        const state = getState() as RootState;
-        if (!query?.trim()) {
-          query = state.queries.files[state.queries.currentPath];
-        }
-        console.log("executing query", query);
-        const result = await db.query(query);
-        dispatch(querySlice.actions.introspectionRequested(null));
-        return result;
+    executeQuery: create.asyncThunk(executeQueryThunk, {
+      pending: state => {
+        state.pending = true;
       },
-      {
-        pending: state => {
-          state.pending = true;
-        },
-        fulfilled: (state, action) => {
-          state.error = null;
-          state.result = action.payload;
-        },
-        rejected: (state, action) => {
-          state.error = action.error;
-        },
-        settled: state => {
-          state.pending = false;
-        },
+      fulfilled: (state, action) => {
+        state.error = null;
+        state.result = action.payload;
       },
-    ),
+      rejected: (state, action) => {
+        state.error = action.error;
+      },
+      settled: state => {
+        state.pending = false;
+      },
+    }),
   }),
 });
 
