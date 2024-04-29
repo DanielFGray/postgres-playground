@@ -83,7 +83,7 @@ const executeQueryThunk = async (query: string | undefined, { getState, dispatch
 const querySlice = createSlice({
   name: "queries",
   initialState: {
-    currentPath: "0001-default.sql",
+    currentPath: Object.keys(defaultFiles).sort((a, b) => a.localeCompare(b)).at(-1),
     files: defaultFiles as Record<string, string>,
     result: null as null | Result | Result[],
     plan: null as null | string,
