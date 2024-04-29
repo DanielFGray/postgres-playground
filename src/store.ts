@@ -13,6 +13,7 @@ import {
 import * as db from "./db";
 import { Result } from "./types";
 import { DbSchema } from "./lib/introspection";
+import { numsQuery as defaultFiles } from "./queryTemplates";
 
 const createSlice = buildCreateSlice({
   creators: { asyncThunk: asyncThunkCreator },
@@ -50,25 +51,6 @@ const uiSlice = createSlice({
 
 export const { previewToggled, filebarToggled, introspectionToggled } =
   uiSlice.actions;
-
-const defaultFiles = {
-  "0001-default.sql": `
--- welcome to pgfiddle, a browser-based playground for postgresql
-drop table if exists nums cascade;
-
-create table nums as
-  select gen_random_uuid(), * from generate_series(1000, 10000);
-
-alter table nums add primary key(gen_random_uuid);
-create index on nums ((generate_series % 2000));
-analyze;
-
-select * from nums where (generate_series % 2000) = 0;
-
-explain (analyze, buffers)
-select * from nums where (generate_series % 2000) = 0;
-`.trim(),
-};
 
 const executeQueryThunk = async (query: string | undefined, { getState, dispatch }) => {
   const state = getState() as RootState
