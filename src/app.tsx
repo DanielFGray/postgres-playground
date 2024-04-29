@@ -7,10 +7,10 @@ import { IntrospectionViewer } from "./components/Introspection";
 
 export function App() {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full bg-primary-100 text-primary-900 dark:text-primary-100 dark:bg-primary-900 flex-col">
       <Toolbar />
       <div className="flex grow flex-row max-h-[100dvh]">
-        <div className="flex bg-primary-100 flex-col max-w-[20vw]">
+        <div className="flex flex-col w-[30vw]">
           <FileBrowser />
           <IntrospectionViewer />
         </div>

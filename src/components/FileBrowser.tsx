@@ -8,12 +8,8 @@ import {
   newFile,
   getCurrentFile,
 } from "../store";
-import {
-  Input,
-  ListBox,
-  ListBoxItem,
-} from "react-aria-components";
-import { Button } from ".";
+import { ListBox, ListBoxItem } from "react-aria-components";
+import { Input, Button } from ".";
 
 export function FileBrowser({ className }: { className?: string }) {
   const [inputVisible, setInputVisible] = useState(false);
@@ -46,18 +42,17 @@ export function FileBrowser({ className }: { className?: string }) {
           }
         }}
         selectedKeys={[path]}
-        className="bg-white p-2 text-sm outline outline-1 outline-primary-300"
+        className="bg-white p-2 outline outline-1 outline-primary-300 dark:bg-primary-700/50 dark:outline-primary-600"
         items={files}
       >
-
         {file => (
           <ListBoxItem
             className={({ isSelected }) =>
               clsx(
                 isSelected
                   ? "pointer-events-none bg-primary-700 text-primary-50"
-                  : "bg-primary-50 bg-transparent text-primary-900",
-                "tracking-light block w-full p-1 text-left text-sm outline-1 outline-primary-300 hover:outline",
+                  : "bg-primary-50 bg-transparent text-primary-900 dark:text-primary-200",
+                "tracking-light block w-full p-1 text-left text-xs outline-1 outline-primary-300 hover:outline dark:outline-primary-600",
               )
             }
             key={file.id}
@@ -65,7 +60,6 @@ export function FileBrowser({ className }: { className?: string }) {
             {file.id}
           </ListBoxItem>
         )}
-
       </ListBox>
       {inputVisible ? (
         <form

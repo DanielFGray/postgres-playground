@@ -28,7 +28,8 @@
     "react-aria": "^3.32.1",
     "react-aria-components": "^1.1.1",
     "react-dom": "^18.2.0",
-    "react-redux": "^9.1.0"
+    "react-redux": "^9.1.0",
+    "react-responsive": "^10.0.0"
   },
   "devDependencies": {
     "@danielfgray/tw-heropatterns": "^0.1.6",

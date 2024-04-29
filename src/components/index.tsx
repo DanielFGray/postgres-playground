@@ -1,20 +1,26 @@
 import clsx from "classnames";
 import { classed } from "@tw-classed/react";
-import { Button as AriaButton } from 'react-aria-components'
+import { Input as AriaInput, Button as AriaButton } from "react-aria-components";
 
 export const Error = classed("div", "bg-red-100 p-2 text-red-800");
 
+export const Input = classed(
+  AriaInput,
+  "px-2 py-1.5 flex-1 min-w-0 outline outline-0 bg-white dark:bg-primary-900 text-sm text-primary-800 dark:text-primary-200 disabled:text-primary-200 dark:disabled:text-primary-600"
+)
+
 export const Button = classed(
   AriaButton,
-  "border-0 font-bold tracking-wide shadow-md shadow-primary-400/50 transition-all duration-200",
+  "border-0 font-bold tracking-wide shadow-md shadow-primary-400/50 transition-color duration-200 shadow-black/30 dark:shadow-black/40",
   "focus:outline-primary-700 focus:ring-2 focus:ring-primary-300",
-  "hover:shadow focus:shadow-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-30 disabled:shadow-none",
+  "hover:shadow-lg focus:shadow-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-30 disabled:shadow-none",
   {
     variants: {
       color: {
         danger: "bg-red-200 text-red-900 hover:bg-red-300",
         primary: "bg-primary-600 text-primary-100 hover:bg-primary-500",
-        default: "bg-primary-50 text-primary-900 hover:bg-primary-50",
+        default:
+          "bg-primary-100 hover:bg-primary-50 text-primary-900 dark:hover:bg-primary-600 hover:bg-primary-50 dark:bg-primary-700 dark:text-primary-100",
       },
       size: {
         sm: "p-1 text-sm",

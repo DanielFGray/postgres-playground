@@ -20,6 +20,7 @@ import {
   useDispatch,
   useSelector,
 } from "../store";
+import { useMediaQuery } from "react-responsive";
 
 // @ts-expect-error TODO: figure out how to type globalThis
 globalThis.MonacoEnvironment = {
@@ -80,11 +81,12 @@ setupLanguageFeatures(LanguageIdEnum.PG, {
 export function MonacoEditor({ className }: { className?: string }) {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>(null);
   const currentFile = useSelector(getCurrentFile);
+  const preferDarkMode = useMediaQuery({ query: "(prefers-color-scheme: dark)" });
   const dispatch = useDispatch();
 
   return (
     <ReactMonaco
-      className={clsx("overflow-clip", className)}
+      className={clsx("overflow-clip outline outline-1 outline-primary-300 dark:outline-primary-600", className)}
       defaultLanguage="pgsql"
       path={currentFile.path}
       defaultValue={currentFile.value}
@@ -93,6 +95,7 @@ export function MonacoEditor({ className }: { className?: string }) {
         minimap: { enabled: false },
         fontSize: 15,
       }}
+      theme={preferDarkMode ? "vs-dark" : "light"}
       onMount={(editor, monaco) => {
         dispatch(queryChanged(editor.getValue()));
         editor.getModel()?.onDidChangeContent(event => {

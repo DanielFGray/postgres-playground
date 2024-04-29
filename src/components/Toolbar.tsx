@@ -7,7 +7,7 @@ export function Toolbar({ className }: { className?: string }) {
   const dispatch = useDispatch();
   const { pending } = useSelector(state => state.queries);
   return (
-    <AriaToolbar className={clsx("flex flex-row gap-2 bg-primary-100 p-2", className)}>
+    <AriaToolbar className={clsx("flex flex-row gap-2 p-2", className)}>
       <Group className="grow">
         <Button
           size="lg"
