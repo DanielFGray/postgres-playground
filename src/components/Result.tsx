@@ -38,25 +38,31 @@ export function Result() {
 }
 
 function ResultTable({ result }: { result: Result }) {
-  if (!result.rows.length) return <div>No results</div>;
   return (
     <table className="w-full">
-      <thead>
-        <tr>
-          {result.fields.map(col => (
-            <th>{col.name}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {result.rows.map(row => (
-          <tr className="odd:bg-white/50 dark:odd:bg-primary-900">
-            {result.fields.map(f => {
-              const value = row[f.name];
-              return <RowValue value={value} typeId={f.dataTypeID} />;
-            })}
+      {result.fields.length < 1 ? null : (
+        <thead className="border-b border-primary-300 dark:border-primary-600">
+          <tr>
+            {result.fields.map(col => (
+              <th>{col.name}</th>
+            ))}
           </tr>
-        ))}
+        </thead>
+      )}
+      <tbody className="divide-y divide-primary-300 dark:divide-primary-600">
+        {result.rows.length < 1 ? (
+          <tr>
+            <td colSpan={result.fields.length}>No results</td>
+          </tr>
+        ) : (
+          result.rows.map(row => (
+            <tr>
+              {result.fields.map(f => (
+                <RowValue value={row[f.name]} typeId={f.dataTypeID} />
+              ))}
+            </tr>
+          ))
+        )}
       </tbody>
     </table>
   );
