@@ -42,7 +42,7 @@ export function FileBrowser({ className }: { className?: string }) {
           }
         }}
         selectedKeys={[path]}
-        className="bg-white p-2 outline outline-1 outline-primary-300 dark:bg-primary-700/50 dark:outline-primary-600"
+        className="bg-white p-2 border border-primary-300 dark:bg-primary-700/50 dark:border-primary-600"
         items={files}
       >
         {file => (

@@ -83,7 +83,7 @@ export function MonacoEditor({ className }: { className?: string }) {
   return (
     <ReactMonaco
       className={clsx(
-        "overflow-clip outline outline-1 outline-primary-300 dark:outline-primary-600",
+        "overflow-clip border border-1 border-primary-300 dark:border-primary-600",
         className,
       )}
       defaultLanguage="pgsql"

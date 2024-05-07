@@ -20,7 +20,7 @@ export const Button = classed(
         danger: "bg-red-200 text-red-900 hover:bg-red-300",
         primary: "bg-primary-600 text-primary-100 hover:bg-primary-500",
         default:
-          "bg-primary-100 hover:bg-primary-50 text-primary-900 dark:hover:bg-primary-600 hover:bg-primary-50 dark:bg-primary-700 dark:text-primary-100",
+          "bg-primary-50 hover:bg-primary-white text-primary-900 dark:hover:bg-primary-600 hover:bg-primary-50 dark:bg-primary-700 dark:text-primary-100",
       },
       size: {
         sm: "p-1 text-sm",

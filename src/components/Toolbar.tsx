@@ -10,21 +10,24 @@ export function Toolbar({ className }: { className?: string }) {
     <AriaToolbar className={clsx("flex flex-row gap-2 p-2", className)}>
       <Group className="grow">
         <Button
+          color="primary"
           size="lg"
           onPress={() => dispatch(executeAllQueries(null))}
           isDisabled={pending}
         >
           {pending ? (
-            <div className="inline-flex h-4 w-4 items-center">
-              <Spinner />
-            </div>
+            <Spinner className="inline-flex h-4 w-4 items-center" />
           ) : null}
           Run All
         </Button>
       </Group>
       <Group className="shrink space-x-2">
-        <Button size="lg" isDisabled>Save</Button>
-        <Button size="lg" isDisabled>Share</Button>
+        <Button size="lg" color="primary" isDisabled>
+          Save
+        </Button>
+        <Button size="lg" color="primary" isDisabled>
+          Share
+        </Button>
       </Group>
     </AriaToolbar>
   );
