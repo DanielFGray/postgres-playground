@@ -9,6 +9,7 @@ import {
   SerializedError,
   combineSlices,
   createSelector,
+  createListenerMiddleware,
 } from "@reduxjs/toolkit";
 import * as db from "./db";
 import { Result } from "./types";
@@ -52,21 +53,9 @@ const uiSlice = createSlice({
 export const { previewToggled, filebarToggled, introspectionToggled } =
   uiSlice.actions;
 
-const executeQueryThunk = async (query: string | undefined, { getState, dispatch }) => {
-  const state = getState() as RootState
-  if (!query?.trim()) {
-    query = state.queries.files[state.queries.currentPath];
-  }
-  const result = await db.query(query);
-  dispatch(querySlice.actions.introspectionRequested(null));
-  return result;
-}
-
 const querySlice = createSlice({
   name: "queries",
   initialState: {
-    currentPath: Object.keys(defaultFiles).sort((a, b) => a.localeCompare(b)).at(-1),
-    files: defaultFiles as Record<string, string>,
     result: null as null | Result | Result[],
     plan: null as null | string,
     error: null as null | SerializedError,
@@ -74,9 +63,91 @@ const querySlice = createSlice({
     pending: false,
   },
 
+  reducers: create => ({
+    introspectionRequested: create.asyncThunk(db.introspectDb, {
+      rejected: (state, action) => {
+        state.introspection = action.payload;
+      },
+      fulfilled: (state, action) => {
+        // TODO: add a toggle for showing/hiding system schemas?
+        const { pg_catalog, pg_toast, ...useful } = action.payload;
+        state.introspection = useful;
+      },
+    }),
+
+    executeQuery: create.asyncThunk(
+      async (query: string | undefined, { getState }) => {
+        const state = getState() as RootState;
+        if (!query?.trim()) {
+          query = state.files.files[state.files.currentPath];
+        }
+        const result = await db.query(query);
+        return result;
+      },
+      {
+        pending: state => {
+          state.pending = true;
+        },
+        fulfilled: (state, action) => {
+          state.error = null;
+          state.result = action.payload;
+        },
+        rejected: (state, action) => {
+          state.error = action.error;
+        },
+        settled: state => {
+          state.pending = false;
+        },
+      },
+    ),
+
+    executeAllQueries: create.asyncThunk(
+      async (_, { getState, dispatch }) => {
+        const state = getState() as RootState;
+        const files = Object.keys(state.files.files).sort((a, b) =>
+          a.localeCompare(b),
+        );
+        let result = [] as Array<Result>;
+        for (const f of files) {
+          const query = state.files.files[f];
+          result = result.concat(await db.query(query));
+        }
+        return result;
+      },
+
+      {
+        pending: state => {
+          state.pending = true;
+        },
+        fulfilled: (state, action) => {
+          state.error = null;
+          state.result = action.payload;
+        },
+        rejected: (state, action) => {
+          state.error = action.error;
+        },
+        settled: state => {
+          state.pending = false;
+        },
+      },
+    ),
+  }),
+});
+
+export const { executeAllQueries, executeQuery } = querySlice.actions;
+
+const filesSlice = createSlice({
+  name: "files",
+  initialState: {
+    currentPath: Object.keys(defaultFiles)
+      .sort((a, b) => a.localeCompare(b))
+      .at(-1)!,
+    files: defaultFiles as Record<string, string>,
+  },
+
   selectors: {
     getFileList: createSelector([state => state.files], files =>
-      Object.keys(files).sort((a, b) => a.localeCompare(b))
+      Object.keys(files).sort((a, b) => a.localeCompare(b)),
     ),
 
     getCurrentFile: createSelector(
@@ -90,49 +161,42 @@ const querySlice = createSlice({
       state.files[action.payload] = "";
     }),
 
-    currentFileChanged: create.reducer<string>((state, action) => {
+    fileNavigated: create.reducer<string>((state, action) => {
       state.currentPath = action.payload;
     }),
 
-    queryChanged: create.reducer<string>((state, action) => {
+    fileUpdated: create.reducer<string>((state, action) => {
       state.files[state.currentPath] = action.payload;
-    }),
-
-    introspectionRequested: create.asyncThunk(db.introspectDb, {
-      rejected: (state, action) => {
-        state.introspection = action.payload;
-      },
-      fulfilled: (state, action) => {
-        // TODO: add a toggle for showing/hiding system schemas?
-        const { pg_catalog, pg_toast, ...useful } = action.payload;
-        state.introspection = useful;
-      },
-    }),
-
-    executeQuery: create.asyncThunk(executeQueryThunk, {
-      pending: state => {
-        state.pending = true;
-      },
-      fulfilled: (state, action) => {
-        state.error = null;
-        state.result = action.payload;
-      },
-      rejected: (state, action) => {
-        state.error = action.error;
-      },
-      settled: state => {
-        state.pending = false;
-      },
     }),
   }),
 });
 
-export const { executeQuery, queryChanged, newFile, currentFileChanged } =
-  querySlice.actions;
-export const { getCurrentFile, getFileList } = querySlice.selectors;
+export const { newFile, fileNavigated, fileUpdated } = filesSlice.actions;
+export const { getCurrentFile, getFileList } = filesSlice.selectors;
 
-const rootReducer = combineSlices(uiSlice, querySlice);
-export const store = configureStore({ reducer: rootReducer });
+const listenerMiddleware = createListenerMiddleware();
+
+listenerMiddleware.startListening({
+  actionCreator: querySlice.actions.executeAllQueries.fulfilled,
+  effect: function (_action, listenerApi) {
+    listenerApi.dispatch(querySlice.actions.introspectionRequested(null));
+  },
+});
+
+listenerMiddleware.startListening({
+  actionCreator: querySlice.actions.executeQuery.fulfilled,
+  effect: function (_action, listenerApi) {
+    listenerApi.dispatch(querySlice.actions.introspectionRequested(null));
+  },
+});
+
+const rootReducer = combineSlices(uiSlice, filesSlice, querySlice);
+export const store = configureStore({
+  reducer: rootReducer,
+  middleware: getDefaultMiddleware => {
+    return getDefaultMiddleware().concat(listenerMiddleware.middleware);
+  },
+});
 
 type RootState = ReturnType<typeof store.getState>;
 type AppDispatch = typeof store.dispatch;

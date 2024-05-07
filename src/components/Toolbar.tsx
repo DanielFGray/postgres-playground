@@ -1,5 +1,5 @@
 import clsx from "classnames";
-import { executeQuery, useDispatch, useSelector } from "../store";
+import { executeAllQueries, useDispatch, useSelector } from "../store";
 import { Button, Spinner } from "./";
 import { Toolbar as AriaToolbar, Group } from 'react-aria-components'
 
@@ -11,7 +11,7 @@ export function Toolbar({ className }: { className?: string }) {
       <Group className="grow">
         <Button
           size="lg"
-          onPress={() => dispatch(executeQuery())}
+          onPress={() => dispatch(executeAllQueries(null))}
           isDisabled={pending}
         >
           {pending ? (
@@ -19,7 +19,7 @@ export function Toolbar({ className }: { className?: string }) {
               <Spinner />
             </div>
           ) : null}
-          Run
+          Run All
         </Button>
       </Group>
       <Group className="shrink space-x-2">

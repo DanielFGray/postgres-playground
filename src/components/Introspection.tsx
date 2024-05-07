@@ -1,6 +1,6 @@
 import clsx from "classnames";
 import {
-    useSelector,
+  useSelector,
   // useDispatch,
 } from "../store";
 import { Stringify } from ".";
@@ -11,10 +11,10 @@ export function IntrospectionViewer({ className }: { className?: string }) {
   // const dispatch = useDispatch();
   if (!introspection) return null;
   return (
-    <aside className={clsx("pt-2 overflow-auto", className)}>
-      <div>
-        {Stringify(introspection)}
-      </div>
+    <aside className={clsx("overflow-auto p-2", className)}>
+      <pre className="p-2">
+        {JSON.stringify(introspection, null, 2)}
+      </pre>
     </aside>
   );
 }

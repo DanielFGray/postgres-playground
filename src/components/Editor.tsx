@@ -10,13 +10,13 @@ import {
   LanguageIdEnum,
   CompletionService,
   ICompletionItem,
-  SyntaxContextType,
+  StmtContextType,
 } from "monaco-sql-languages";
 
 import {
   getCurrentFile,
   executeQuery,
-  queryChanged,
+  fileUpdated,
   useDispatch,
   useSelector,
 } from "../store";
@@ -54,15 +54,9 @@ const completionService: CompletionService = function (
     let syntaxCompletionItems: ICompletionItem[] = [];
 
     syntax.forEach(item => {
-      if (item.syntaxContextType === SyntaxContextType.DATABASE) {
-        const databaseCompletions: ICompletionItem[] = []; // some completions about databaseName
-        syntaxCompletionItems = [
-          ...syntaxCompletionItems,
-          ...databaseCompletions,
-        ];
-      }
-      if (item.syntaxContextType === SyntaxContextType.TABLE) {
-        const tableCompletions: ICompletionItem[] = []; // some completions about tableName
+      console.log(item.syntaxContextType);
+      if (item.syntaxContextType === StmtContextType.SELECT_STMT) {
+        const tableCompletions: ICompletionItem[] = []; // some completions about select statements
         syntaxCompletionItems = [...syntaxCompletionItems, ...tableCompletions];
       }
     });
@@ -81,12 +75,17 @@ setupLanguageFeatures(LanguageIdEnum.PG, {
 export function MonacoEditor({ className }: { className?: string }) {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>(null);
   const currentFile = useSelector(getCurrentFile);
-  const preferDarkMode = useMediaQuery({ query: "(prefers-color-scheme: dark)" });
+  const preferDarkMode = useMediaQuery({
+    query: "(prefers-color-scheme: dark)",
+  });
   const dispatch = useDispatch();
 
   return (
     <ReactMonaco
-      className={clsx("overflow-clip outline outline-1 outline-primary-300 dark:outline-primary-600", className)}
+      className={clsx(
+        "overflow-clip outline outline-1 outline-primary-300 dark:outline-primary-600",
+        className,
+      )}
       defaultLanguage="pgsql"
       path={currentFile.path}
       defaultValue={currentFile.value}
@@ -97,9 +96,9 @@ export function MonacoEditor({ className }: { className?: string }) {
       }}
       theme={preferDarkMode ? "vs-dark" : "light"}
       onMount={(editor, monaco) => {
-        dispatch(queryChanged(editor.getValue()));
+        dispatch(fileUpdated(editor.getValue()));
         editor.getModel()?.onDidChangeContent(event => {
-          dispatch(queryChanged(editor.getValue()));
+          dispatch(fileUpdated(editor.getValue()));
         });
         editor.addAction({
           id: "run-query",
@@ -110,7 +109,9 @@ export function MonacoEditor({ className }: { className?: string }) {
           run(e) {
             const model = e.getModel();
             const selection = editor.getSelection();
-            const query = selection && model?.getValueInRange(selection) || model?.getValue();
+            const query =
+              (selection && model?.getValueInRange(selection)) ||
+              model?.getValue();
             console.log("Running query", query);
             dispatch(executeQuery(query));
           },

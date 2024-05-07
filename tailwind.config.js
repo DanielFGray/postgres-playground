@@ -13,7 +13,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: colors.slate,
+        primary: colors.zinc,
         gray: colors.neutral,
       },
     },

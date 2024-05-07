@@ -4,7 +4,7 @@ import {
   getFileList,
   useSelector,
   useDispatch,
-  currentFileChanged,
+  fileNavigated,
   newFile,
   getCurrentFile,
 } from "../store";
@@ -14,14 +14,16 @@ import { Input, Button } from ".";
 export function FileBrowser({ className }: { className?: string }) {
   const [inputVisible, setInputVisible] = useState(false);
 
-  const dispatch = useDispatch();
-  const fileList = useSelector(getFileList);
   const visible = useSelector(state => state.ui.filebarVisible);
   const { path } = useSelector(getCurrentFile);
+  const fileList = useSelector(getFileList);
+  const dispatch = useDispatch();
+
   const files = useMemo(
     () => fileList.map(file => ({ id: file })),
     [fileList],
   );
+
   return (
     <aside
       className={clsx(
@@ -34,11 +36,9 @@ export function FileBrowser({ className }: { className?: string }) {
         selectionMode="single"
         aria-label="files in this fiddle"
         onSelectionChange={selection => {
-          if (typeof selection === "string") {
-            return dispatch(currentFileChanged(selection));
-          }
+          if (typeof selection === "string") return
           for (const item of selection) {
-            return dispatch(currentFileChanged(item));
+            return dispatch(fileNavigated(item));
           }
         }}
         selectedKeys={[path]}
@@ -73,7 +73,7 @@ export function FileBrowser({ className }: { className?: string }) {
         >
           <Input
             type="text"
-            autoFocus
+            autoFoclus
             name="filename"
             placeholder="filename"
             className="block w-full border-transparent p-2 outline outline-1 outline-primary-300 hover:outline"

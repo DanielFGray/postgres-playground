@@ -7,7 +7,7 @@ import {
   makeIntrospectionQuery,
   parseIntrospectionResults,
 } from "pg-introspection";
-import { processIntrospection } from "./lib/introspection";
+import { DbIntrospection, processIntrospection } from "./lib/introspection";
 
 let db: PGlite = new PGlite();
 db.query("select 1").then(() => console.log("database loaded"));
@@ -49,7 +49,7 @@ export async function introspectDb() {
     const {
       rows: [{ introspection }],
     }: Result = await db.query(makeIntrospectionQuery());
-    return new Introspection(parseIntrospectionResults(introspection)).schemas;
+    return new DbIntrospection(parseIntrospectionResults(introspection)).schemas;
   } catch (e) {
     console.error(e);
     throw e;
