@@ -5,13 +5,9 @@ import { loader } from '@monaco-editor/react';
 import ReactMonaco from "@monaco-editor/react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import PGSQLWorker from "monaco-sql-languages/esm/languages/pgsql/pgsql.worker?worker";
-import { languages } from "monaco-editor/esm/vs/editor/editor.api";
 import {
   setupLanguageFeatures,
   LanguageIdEnum,
-  CompletionService,
-  ICompletionItem,
-  StmtContextType,
 } from "monaco-sql-languages";
 import {
   getCurrentFile,
@@ -19,8 +15,9 @@ import {
   fileUpdated,
   useDispatch,
   useSelector,
-} from "../store";
+} from "../../store";
 import { useMediaQuery } from "react-responsive";
+import { completionService } from "./completionService";
 
 loader.config({ monaco });
 
@@ -34,43 +31,10 @@ globalThis.MonacoEnvironment = {
   },
 };
 
-const completionService: CompletionService = function (
-  model,
-  position,
-  completionContext,
-  suggestions, // syntax context info at caretPosition
-  entities, // tables, columns in the syntax context of the editor text
-) {
-  return new Promise((resolve, reject) => {
-    if (!suggestions) {
-      return Promise.resolve([]);
-    }
-    const { keywords, syntax } = suggestions;
-    const keywordsCompletionItems: ICompletionItem[] = keywords.map(kw => ({
-      label: kw,
-      kind: languages.CompletionItemKind.Keyword,
-      detail: "keyword",
-      sortText: "2" + kw,
-    }));
-
-    let syntaxCompletionItems: ICompletionItem[] = [];
-
-    syntax.forEach(item => {
-      console.log(item.syntaxContextType);
-      if (item.syntaxContextType === StmtContextType.SELECT_STMT) {
-        const tableCompletions: ICompletionItem[] = []; // some completions about select statements
-        syntaxCompletionItems = [...syntaxCompletionItems, ...tableCompletions];
-      }
-    });
-
-    resolve([...syntaxCompletionItems, ...keywordsCompletionItems]);
-  });
-};
-
 setupLanguageFeatures(LanguageIdEnum.PG, {
   completionItems: {
     enable: true,
-    completionService: completionService,
+    completionService,
   },
 });
 
