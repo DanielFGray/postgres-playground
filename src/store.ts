@@ -15,7 +15,7 @@ import {
 import * as db from "./db";
 import { Result } from "./types";
 import { DbSchema } from "./lib/introspection";
-import { numsQuery as defaultFiles } from "./queryTemplates";
+import { defaultFiles } from "./queryTemplate";
 
 const createSlice = buildCreateSlice({
   creators: { asyncThunk: asyncThunkCreator },
