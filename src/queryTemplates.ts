@@ -197,8 +197,7 @@ create table nums as
 alter table nums add primary key(gen_random_uuid);
 create index on nums ((generate_series % 2000));
 analyze;
-`.trim(),
-  "0010-test.sql": `
+
 -- explain (analyze, buffers)
 select * from nums where (generate_series % 2000) = 0;
 `.trim(),
