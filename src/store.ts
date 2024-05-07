@@ -10,6 +10,7 @@ import {
   combineSlices,
   createSelector,
   createListenerMiddleware,
+  isAnyOf,
 } from "@reduxjs/toolkit";
 import * as db from "./db";
 import { Result } from "./types";
@@ -177,14 +178,10 @@ export const { getCurrentFile, getFileList } = filesSlice.selectors;
 const listenerMiddleware = createListenerMiddleware();
 
 listenerMiddleware.startListening({
-  actionCreator: querySlice.actions.executeAllQueries.fulfilled,
-  effect: function (_action, listenerApi) {
-    listenerApi.dispatch(querySlice.actions.introspectionRequested(null));
-  },
-});
-
-listenerMiddleware.startListening({
-  actionCreator: querySlice.actions.executeQuery.fulfilled,
+  matcher: isAnyOf(
+    querySlice.actions.executeAllQueries.fulfilled,
+    querySlice.actions.executeQuery.fulfilled,
+  ),
   effect: function (_action, listenerApi) {
     listenerApi.dispatch(querySlice.actions.introspectionRequested(null));
   },
