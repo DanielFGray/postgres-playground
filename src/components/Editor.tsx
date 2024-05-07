@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import clsx from "classnames";
-import * as monaco from "monaco-editor";
+import * as monaco from 'monaco-editor';
+import { loader } from '@monaco-editor/react';
 import ReactMonaco from "@monaco-editor/react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import PGSQLWorker from "monaco-sql-languages/esm/languages/pgsql/pgsql.worker?worker";
@@ -12,7 +13,6 @@ import {
   ICompletionItem,
   StmtContextType,
 } from "monaco-sql-languages";
-
 import {
   getCurrentFile,
   executeQuery,
@@ -21,6 +21,8 @@ import {
   useSelector,
 } from "../store";
 import { useMediaQuery } from "react-responsive";
+
+loader.config({ monaco });
 
 // @ts-expect-error TODO: figure out how to type globalThis
 globalThis.MonacoEnvironment = {
