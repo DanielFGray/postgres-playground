@@ -12,6 +12,17 @@ import {
   createListenerMiddleware,
   isAnyOf,
 } from "@reduxjs/toolkit";
+import {
+  persistStore,
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from "redux-persist";
+import storage from "redux-persist/lib/storage";
 import * as db from "~/db";
 import { Result } from "~/types";
 import { DbSchema } from "~/lib/introspection";
@@ -188,12 +199,29 @@ listenerMiddleware.startListening({
 });
 
 const rootReducer = combineSlices(uiSlice, filesSlice, querySlice);
+
+const persistConfig = {
+  key: "root",
+  version: 1,
+  storage,
+  throttle: 500,
+  blacklist: ["queries"],
+};
+
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
 export const store = configureStore({
-  reducer: rootReducer,
+  reducer: persistedReducer,
   middleware: getDefaultMiddleware => {
-    return getDefaultMiddleware().concat(listenerMiddleware.middleware);
+    return getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }).concat(listenerMiddleware.middleware);
   },
 });
+
+export const persistor = persistStore(store)
 
 type RootState = ReturnType<typeof store.getState>;
 type AppDispatch = typeof store.dispatch;
