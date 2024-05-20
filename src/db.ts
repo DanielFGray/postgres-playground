@@ -27,17 +27,9 @@ export async function query(query: string, params?: any[]): Promise<Array<[strin
   return zip(queries, result);
 }
 
-export async function freshQueryWithMigrations(
-  migrations: string[],
-  inputQuery: string,
-  params?: string[],
-): Promise<Result> {
-  return freshQueryContext(async db => {
-    for (const m of migrations) {
-      await db.execute(m, { parsers });
-    }
-    return await query(inputQuery, params);
-  });
+export async function resetDb(): Promise<void> {
+  if (db) await db.close();
+  db = null
 }
 
 export async function freshQueryContext<T>(
