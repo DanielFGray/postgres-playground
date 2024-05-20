@@ -1,9 +1,7 @@
 import clsx from "classnames";
 import {
   useSelector,
-  // useDispatch,
-} from "../store";
-import { Stringify } from ".";
+} from "~/store";
 
 export function IntrospectionViewer({ className }: { className?: string }) {
   // const visible = useSelector(state => state.ui.introspectionVisible)

@@ -3,7 +3,7 @@ import {
   PgNamespace,
   Introspection as PgIntrospection,
 } from "pg-introspection";
-import { groupWith, invariant } from "./";
+import { groupWith, invariant } from "~/lib";
 import { PgEntity } from "pg-introspection/dist/introspection";
 
 export type DbSchema = {

@@ -12,10 +12,10 @@ import {
   createListenerMiddleware,
   isAnyOf,
 } from "@reduxjs/toolkit";
-import * as db from "./db";
-import { Result } from "./types";
-import { DbSchema } from "./lib/introspection";
-import { defaultFiles } from "./queryTemplate";
+import * as db from "~/db";
+import { Result } from "~/types";
+import { DbSchema } from "~/lib/introspection";
+import { defaultFiles } from "~/queryTemplate";
 
 const createSlice = buildCreateSlice({
   creators: { asyncThunk: asyncThunkCreator },

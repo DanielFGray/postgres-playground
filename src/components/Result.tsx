@@ -1,6 +1,6 @@
-import { previewToggled, useDispatch, useSelector } from "../store";
-import type { Result } from "../types";
-import { Button, Error } from "./";
+import { previewToggled, useDispatch, useSelector } from "~/store";
+import type { Result } from "~/types";
+import { Button, Error } from "~/components";
 
 export function Result() {
   const previewVisible = useSelector(state => state.ui.previewVisible);

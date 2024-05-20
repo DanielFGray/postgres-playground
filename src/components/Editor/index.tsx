@@ -4,6 +4,7 @@ import * as monaco from 'monaco-editor';
 import { loader } from '@monaco-editor/react';
 import ReactMonaco from "@monaco-editor/react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
+import "monaco-sql-languages/esm/languages/pgsql/pgsql.contribution";
 import PGSQLWorker from "monaco-sql-languages/esm/languages/pgsql/pgsql.worker?worker";
 import {
   setupLanguageFeatures,

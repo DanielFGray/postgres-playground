@@ -1,6 +1,6 @@
 import clsx from "classnames";
-import { executeAllQueries, useDispatch, useSelector } from "../store";
-import { Button, Spinner } from "./";
+import { executeAllQueries, useDispatch, useSelector } from "~/store";
+import { Button, Spinner } from "~/components";
 import { Toolbar as AriaToolbar, Group } from "react-aria-components";
 
 export function Toolbar({ className }: { className?: string }) {

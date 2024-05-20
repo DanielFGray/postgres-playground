@@ -9,7 +9,7 @@ import {
   getCurrentFile,
 } from "../store";
 import { ListBox, ListBoxItem } from "react-aria-components";
-import { Input, Button } from ".";
+import { Input, Button } from "~/components";
 
 export function FileBrowser({ className }: { className?: string }) {
   const [inputVisible, setInputVisible] = useState(false);

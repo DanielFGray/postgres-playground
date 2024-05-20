@@ -1,9 +1,8 @@
-import "monaco-sql-languages/esm/languages/pgsql/pgsql.contribution";
-import { Result } from "./components/Result";
-import { MonacoEditor as Editor } from "./components/Editor";
-import { Toolbar } from "./components/Toolbar";
-import { FileBrowser } from "./components/FileBrowser";
-import { IntrospectionViewer } from "./components/Introspection";
+import { Result } from "~/components/Result";
+import { MonacoEditor as Editor } from "~/components/Editor";
+import { Toolbar } from "~/components/Toolbar";
+import { FileBrowser } from "~/components/FileBrowser";
+import { IntrospectionViewer } from "~/components/Introspection";
 
 export function App() {
   return (

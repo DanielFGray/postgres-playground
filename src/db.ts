@@ -2,12 +2,12 @@ import {
   types,
   PGlite,
 } from "https://cdn.jsdelivr.net/npm/@electric-sql/pglite/dist/index.js";
-import { Result } from "./types";
+import { Result } from "~/types";
 import {
   makeIntrospectionQuery,
   parseIntrospectionResults,
 } from "pg-introspection";
-import { DbIntrospection, processIntrospection } from "./lib/introspection";
+import { DbIntrospection } from "~/lib/introspection";
 
 let db: PGlite = new PGlite();
 db.query("select 1").then(() => console.log("database loaded"));
