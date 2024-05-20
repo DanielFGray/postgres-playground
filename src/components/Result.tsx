@@ -1,14 +1,15 @@
+import clsx from "classnames";
 import { previewToggled, useDispatch, useSelector } from "~/store";
 import type { Result } from "~/types";
 import { Button, Error } from "~/components";
 
-export function Result() {
+export function Result({ className }: { className?: string }) {
   const previewVisible = useSelector(state => state.ui.previewVisible);
   const result = useSelector(state => state.queries.result);
   const error = useSelector(state => state.queries.error);
   const dispatch = useDispatch();
   return (
-    <div className="fixed bottom-0 w-full backdrop-blur-sm">
+    <div className={clsx("fixed bottom-0 w-full backdrop-blur-sm", className)}>
       <div className="bg-primary-100/80 dark:bg-primary-900/80">
         <div className="p-2 outline outline-1 outline-primary-300 dark:outline-primary-600">
           <Button onPress={() => dispatch(previewToggled())}>Result</Button>
