@@ -173,7 +173,9 @@ const filesSlice = createSlice({
     }),
 
     fileNavigated: create.reducer<string>((state, action) => {
-      state.currentPath = action.payload;
+      if (action.payload in state.files) {
+        state.currentPath = action.payload;
+      }
     }),
 
     fileUpdated: create.reducer<string>((state, action) => {
