@@ -35,3 +35,11 @@ export function groupBy<T, K extends string>(
     values,
   );
 }
+
+export function zip<A, B>(a: Array<A>, b: Array<B>) {
+  const result: [A, B][] = [];
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    result.push([a[i], b[i]]);
+  }
+  return result;
+}

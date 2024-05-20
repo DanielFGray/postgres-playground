@@ -23,11 +23,9 @@ export function Result() {
                 id="preview_container"
                 className="max-h-[32dvh] space-y-2 overflow-auto p-2"
               >
-                {result instanceof Array ? (
-                  result.map(r => <ResultTable result={r} />)
-                ) : (
-                  <ResultTable result={result} />
-                )}
+                {result.map(r => (
+                  <ResultTable result={r} />
+                ))}
               </div>
             ) : null}
           </>
@@ -37,7 +35,11 @@ export function Result() {
   );
 }
 
-function ResultTable({ result }: { result: Result }) {
+function ResultTable({
+  result: [query, result],
+}: {
+  result: [string, Result];
+}) {
   return (
     <table className="w-full">
       {result.fields.length < 1 ? null : (
@@ -50,7 +52,11 @@ function ResultTable({ result }: { result: Result }) {
         </thead>
       )}
       <tbody className="divide-y divide-primary-300 dark:divide-primary-600">
-        {result.rows.length < 1 ? (
+        {result.fields.length < 1 ? (
+          <tr>
+            <td>{query.split(" ").slice(0, 2).join(" ").toUpperCase()}</td>
+          </tr>
+        ) : result.rows.length < 1 ? (
           <tr>
             <td colSpan={result.fields.length}>No results</td>
           </tr>
@@ -71,13 +77,14 @@ function ResultTable({ result }: { result: Result }) {
 function RowValue({ value, typeId }: { value: any; typeId }) {
   return (
     <td
-      className={
+      className={clsx(
+        "whitespace-pre",
         // looks like a number or date
         // FIXME: don't use magic numbers
         typeof value === "number" || typeId === 1184
           ? "text-right"
-          : "text-left"
-      }
+          : "text-left",
+      )}
     >
       {typeof value === "string" ? (
         value

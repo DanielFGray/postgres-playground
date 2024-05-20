@@ -8,6 +8,8 @@ import {
   parseIntrospectionResults,
 } from "pg-introspection";
 import { DbIntrospection } from "~/lib/introspection";
+import * as semicolons from 'postgres-semicolons';
+import { zip } from "~/lib";
 
 let db: PGlite = new PGlite();
 db.query("select 1").then(() => console.log("database loaded"));
@@ -17,10 +19,12 @@ const parsers = {
   [types.TIMESTAMPTZ]: value => value.toString(),
 };
 
-export async function query(query: string, params?: any[]): Promise<Result> {
+export async function query(query: string, params?: any[]): Promise<Array<[string, Result]>> {
   if (!db) db = new PGlite();
   const result = await db.exec(query, params, { parsers });
-  return result;
+  const splits = semicolons.parseSplits(query, true);
+  const queries = semicolons.splitStatements(query, splits.positions, true);
+  return zip(queries, result);
 }
 
 export async function freshQueryWithMigrations(

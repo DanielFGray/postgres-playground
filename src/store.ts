@@ -68,8 +68,7 @@ export const { previewToggled, filebarToggled, introspectionToggled } =
 const querySlice = createSlice({
   name: "queries",
   initialState: {
-    result: null as null | Result | Result[],
-    plan: null as null | string,
+    result: null as null | [string, Result][],
     error: null as null | SerializedError,
     introspection: null as null | Record<string, DbSchema>,
     pending: false,
@@ -119,7 +118,7 @@ const querySlice = createSlice({
         const files = Object.keys(state.files.files).sort((a, b) =>
           a.localeCompare(b),
         );
-        let result = [] as Array<Result>;
+        let result = [] as Array<[string, Result]>;
         for (const f of files) {
           const query = state.files.files[f];
           result = result.concat(await db.query(query));
