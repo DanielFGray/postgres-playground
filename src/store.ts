@@ -7,10 +7,10 @@ import {
   buildCreateSlice,
   asyncThunkCreator,
   SerializedError,
-  combineSlices,
   createSelector,
   createListenerMiddleware,
   isAnyOf,
+  combineSlices,
 } from "@reduxjs/toolkit";
 import {
   persistStore,
@@ -213,16 +213,15 @@ const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 export const store = configureStore({
   reducer: persistedReducer,
-  middleware: getDefaultMiddleware => {
-    return getDefaultMiddleware({
+  middleware: getDefaultMiddleware =>
+    getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }).concat(listenerMiddleware.middleware);
-  },
+    }).concat(listenerMiddleware.middleware),
 });
 
-export const persistor = persistStore(store)
+export const persistor = persistStore(store);
 
 type RootState = ReturnType<typeof store.getState>;
 type AppDispatch = typeof store.dispatch;
