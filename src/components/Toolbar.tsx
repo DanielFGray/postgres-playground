@@ -7,7 +7,7 @@ import { Toolbar as AriaToolbar, Group } from "react-aria-components";
 export function Toolbar({ className }: { className?: string }) {
   const dispatch = useDispatch();
   const { pending } = useSelector(state => state.queries);
-  const { data: { body: auth } } = serverApi.useMeQuery({});
+  const { data: auth } = serverApi.useMeQuery({});
   return (
     <AriaToolbar
       className={clsx(

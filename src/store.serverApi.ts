@@ -10,8 +10,9 @@ export const serverApi = createApi({
     me: build.query({
       async queryFn() {
         const { error, ...rest } = await server.me.get();
-        const { data: body, ...head } = rest;
-        return { data: {body, ...head}, error };
+        if (error || ! rest.data) return { error };
+        const { data, headers, status, ok } = rest
+        return { data, headers, status, ok };
       },
     }),
     post: build.query({ queryFn: () => server.me.get() }),
