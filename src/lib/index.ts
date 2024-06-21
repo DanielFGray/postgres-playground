@@ -55,3 +55,17 @@ export function generateStr(
   }
   return result;
 }
+
+/**
+ * silly hack to enable syntax highlighting
+ */
+export function templateHack<T>(strings: TemplateStringsArray, ...interpolations: Array<T>) {
+  let result = "";
+  for (let i = 0; i < strings.length; i++) {
+    result += strings[i];
+    if (i < interpolations.length) {
+      result += interpolations[i];
+    }
+  }
+  return result;
+}
