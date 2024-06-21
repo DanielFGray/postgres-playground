@@ -1,14 +1,21 @@
 import clsx from "classnames";
 import { executeAllQueries, useDispatch, useSelector } from "~/store";
+import { serverApi } from "~/store.serverApi";
 import { Button, Spinner } from "~/components";
 import { Toolbar as AriaToolbar, Group } from "react-aria-components";
 
 export function Toolbar({ className }: { className?: string }) {
   const dispatch = useDispatch();
   const { pending } = useSelector(state => state.queries);
+  const { data: { body: auth } } = serverApi.useMeQuery({});
   return (
-    <AriaToolbar className={clsx("flex flex-row gap-2 p-2", className)}>
-      <Group className="grow">
+    <AriaToolbar
+      className={clsx(
+        "flex flex-row items-center justify-between gap-2 p-2",
+        className,
+      )}
+    >
+      <Group>
         <Button
           color="primary"
           size="lg"
@@ -21,13 +28,19 @@ export function Toolbar({ className }: { className?: string }) {
           Run All
         </Button>
       </Group>
-      <Group className="shrink space-x-2">
+      {auth?.id ? <div>hello {auth.username}!</div> : null}
+      <Group>
         <Button size="lg" color="primary" isDisabled>
           Save
         </Button>
         <Button size="lg" color="primary" isDisabled>
           Share
         </Button>
+        {auth?.id ? null : (
+          <Button as="a" href="/auth/github">
+            Log In
+          </Button>
+        )}
       </Group>
     </AriaToolbar>
   );

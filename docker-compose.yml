@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${ROOT_DATABASE_USER}
+      - POSTGRES_PASSWORD=${ROOT_DATABASE_PASSWORD}
+    command: postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c log_destination=stderr
+    volumes:
+      - /var/run/postgresql:/var/run/postgresql
+    #   - ./pgscripts:/docker-entrypoint-initdb.d
+    #   - ./data:/var/lib/postgresql/data
+    networks:
+      - appnet
+    ports:
+      - ${DATABASE_PORT}:5432
+
+networks:
+  appnet:

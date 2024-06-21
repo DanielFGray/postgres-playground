@@ -10,8 +10,9 @@ import {
   createSelector,
   createListenerMiddleware,
   isAnyOf,
-  combineSlices,
+  combineReducers,
 } from "@reduxjs/toolkit";
+import { setupListeners } from "@reduxjs/toolkit/query";
 import {
   persistStore,
   persistReducer,
@@ -27,6 +28,9 @@ import * as db from "~/db";
 import { Result } from "~/types";
 import { DbSchema } from "~/lib/introspection";
 import { defaultFiles } from "~/queryTemplate";
+import { z } from "zod";
+import { serverApi } from "~/store.serverApi";
+import { base64URLdecode } from "~/lib";
 
 const createSlice = buildCreateSlice({
   creators: { asyncThunk: asyncThunkCreator },
@@ -199,7 +203,12 @@ listenerMiddleware.startListening({
   },
 });
 
-const rootReducer = combineSlices(uiSlice, filesSlice, querySlice);
+const rootReducer = combineReducers({
+  [uiSlice.reducerPath]: uiSlice.reducer,
+  [filesSlice.reducerPath]: filesSlice.reducer,
+  [querySlice.reducerPath]: querySlice.reducer,
+  [serverApi.reducerPath]: serverApi.reducer,
+});
 
 const persistConfig = {
   key: "root",
@@ -218,8 +227,10 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }).concat(listenerMiddleware.middleware),
+    }).concat(listenerMiddleware.middleware, serverApi.middleware),
 });
+
+setupListeners(store.dispatch);
 
 export const persistor = persistStore(store);
 

@@ -1,3 +1,5 @@
+require('dotenv').config()
+
 /** @type {import("eslint").Linter.Config} */
 module.exports = {
   root: true,
@@ -70,6 +72,11 @@ module.exports = {
         project: "./tsconfig.json",
       },
     },
+    {
+      files: ["./server/**/*.ts"],
+      parser: "@typescript-eslint/parser",
+      plugins: ["@typescript-eslint", "@ts-safeql/eslint-plugin"],
+    },
   ],
   rules: {
     "no-undef": "off",
@@ -84,5 +91,21 @@ module.exports = {
     "react/react-in-jsx-scope": "off",
     "@typescript-eslint/no-unused-vars": "off", // typescript does this anyway
     "@typescript-eslint/no-explicit-any": "warn",
+    "@ts-safeql/check-sql": [
+      "error",
+      {
+        connections: [
+          {
+            databaseUrl: process.env.DATABASE_URL,
+            targets: [
+              {
+                tag: "sql",
+                transform: "{type}[]",
+              },
+            ],
+          },
+        ],
+      },
+    ],
   },
 };

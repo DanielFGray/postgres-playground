@@ -22,9 +22,10 @@
     "types": ["cypress", "node"],
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "~server/*": ["./server/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "server", "worker", "scripts"],
   "exclude": ["cypress"]
 }
