@@ -142,7 +142,7 @@ export const app = new Elysia({
             name: string | null;
             avatar_url: string | null;
             bio: string | null;
-            role: unknown | null;
+            role: "user" | "sponsor" | "pro" | "admin" | null;
             is_verified: boolean | null;
             created_at: Date | null;
             updated_at: Date | null;
@@ -193,7 +193,7 @@ export const app = new Elysia({
             name: string | null;
             avatar_url: string | null;
             bio: string | null;
-            role: unknown | null;
+            role: "user" | "sponsor" | "pro" | "admin" | null;
             is_verified: boolean | null;
             created_at: Date | null;
             updated_at: Date | null;
@@ -300,7 +300,7 @@ export const app = new Elysia({
                 name: string | null;
                 avatar_url: string | null;
                 bio: string | null;
-                role: unknown | null;
+                role: "user" | "sponsor" | "pro" | "admin" | null;
                 is_verified: boolean | null;
                 created_at: Date | null;
                 updated_at: Date | null;
