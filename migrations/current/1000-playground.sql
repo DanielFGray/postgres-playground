@@ -66,6 +66,8 @@ create table app_public.playground_stars (
   primary key (playground_id, user_id)
 );
 
+create index on app_public.playground_stars (user_id);
+
 alter table app_public.playground_stars enable row level security;
 
 create policy select_all on app_public.playground_stars
