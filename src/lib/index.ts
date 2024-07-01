@@ -46,7 +46,7 @@ export function zip<A, B>(a: Array<A>, b: Array<B>) {
 
 export function generateStr(
   length: number,
-  characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+  characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
 ) {
   let result = "";
   const charactersLength = characters.length;

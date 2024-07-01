@@ -1,13 +1,10 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tsPaths from 'vite-tsconfig-paths'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tsPaths from "vite-tsconfig-paths";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    tsPaths(),
-  ],
+  plugins: [react(), tsPaths()],
   server: {
     port: 3000,
     proxy: {
@@ -22,4 +19,10 @@ export default defineConfig({
       },
     },
   },
-})
+  optimizeDeps: {
+    // vite doesn't support wasm, but this works?
+    exclude: [
+      "@electric-sql/pglite",
+    ],
+  },
+});

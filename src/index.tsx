@@ -2,7 +2,7 @@ import ReactDOM from "react-dom/client";
 import { App } from "~/app";
 import "~/tailwind.css";
 import { Provider } from "react-redux";
-import { PersistGate } from 'redux-persist/integration/react'
+import { PersistGate } from "redux-persist/integration/react";
 import { persistor, store } from "~/store";
 
 document.addEventListener("DOMContentLoaded", function () {

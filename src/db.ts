@@ -1,8 +1,4 @@
-import {
-  types,
-  PGlite,
-} from "https://cdn.jsdelivr.net/npm/@electric-sql/pglite/dist/index.js";
-import { Result } from "~/types";
+import { types, Results, PGlite } from "@electric-sql/pglite";
 import {
   makeIntrospectionQuery,
   parseIntrospectionResults,
@@ -19,7 +15,10 @@ const parsers = {
   [types.TIMESTAMPTZ]: value => value.toString(),
 };
 
-export async function query(query: string, params?: any[]): Promise<Array<[string, Result]>> {
+export async function query(
+  query: string,
+  params?: any[],
+): Promise<Array<[string, Results]>> {
   if (!db) db = new PGlite();
   const result = await db.exec(query, params, { parsers });
   const splits = semicolons.parseSplits(query, true);

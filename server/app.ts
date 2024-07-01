@@ -38,7 +38,7 @@ const {
   DATABASE_VISITOR,
 } = process.env;
 
-const isProd = NODE_ENV === 'production';
+const isProd = NODE_ENV === "production";
 
 const sqlConfig = {
   transform: {
@@ -125,7 +125,7 @@ const getGithubSponsorInfo = gql`
 export const app = new Elysia({
   cookie: { secrets: process.env.SECRET },
 })
-  .use(Logestic.preset(isProd ? 'common' : 'fancy'))
+  .use(Logestic.preset(isProd ? "common" : "fancy"))
   .derive(async ({ cookie }) => {
     return await lucia.validateSession(cookie[lucia.sessionCookieName].value);
   })
@@ -231,6 +231,7 @@ export const app = new Elysia({
     async ({ params, cookie, set, query }) => {
       const state = generateState();
       const codeVerifier = generateCodeVerifier();
+
       const redirectUrl =
         await oauthProviders[params.provider].createAuthorizationURL(state);
 
