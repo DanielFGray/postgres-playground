@@ -82,6 +82,7 @@ module.exports = {
     "no-unexpected-multiline": "error",
     "no-nested-ternary": "off",
     "no-unused-vars": "off",
+    "no-else-return": "error",
     "arrow-parens": ["warn", "as-needed"],
     "object-curly-newline": "off",
     "valid-jsdoc": "warn",
