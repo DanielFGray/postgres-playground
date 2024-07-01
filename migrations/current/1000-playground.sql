@@ -18,7 +18,7 @@ create table app_public.playgrounds (
   data jsonb not null
 );
 
-create index on app_public.playgrounds (user_id, privacy);
+create index on app_public.playgrounds (user_id);
 create index on app_public.playgrounds (fork_id);
 create index on app_public.playgrounds (created_at desc);
 
@@ -46,8 +46,8 @@ create policy manage_all_as_admin on app_public.playgrounds
 
 grant
   select,
-  insert (data, description, privacy, fork_id),
-  update (data, description, privacy),
+  insert (name, description, data, privacy, fork_id),
+  update (name, description, data, privacy),
   delete
   on app_public.playgrounds to :DATABASE_VISITOR;
 
