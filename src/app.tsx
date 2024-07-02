@@ -1,5 +1,5 @@
 import { Result } from "~/components/Result";
-import { MonacoEditor as Editor } from "~/components/Editor";
+import { Editor } from "~/components/Editor";
 import { Toolbar } from "~/components/Toolbar";
 import { FileBrowser } from "~/components/FileBrowser";
 import { IntrospectionViewer } from "~/components/Introspection";

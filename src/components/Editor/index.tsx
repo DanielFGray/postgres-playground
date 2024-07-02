@@ -1,8 +1,6 @@
-import { useRef } from "react";
 import clsx from "classnames";
-import * as monaco from 'monaco-editor';
-import { loader } from '@monaco-editor/react';
-import ReactMonaco from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
+import ReactMonaco, { loader } from "@monaco-editor/react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import {
   getCurrentFile,
@@ -10,7 +8,7 @@ import {
   fileUpdated,
   useDispatch,
   useSelector,
-} from "../../store";
+} from "~/store";
 import { useMediaQuery } from "react-responsive";
 import { completionService } from "./completionService";
 
@@ -30,8 +28,7 @@ monaco.languages.registerCompletionItemProvider("sql", {
   },
 });
 
-export function MonacoEditor({ className }: { className?: string }) {
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>(null);
+export function Editor({ className }: { className?: string }) {
   const currentFile = useSelector(getCurrentFile);
   const preferDarkMode = useMediaQuery({
     query: "(prefers-color-scheme: dark)",
@@ -41,7 +38,7 @@ export function MonacoEditor({ className }: { className?: string }) {
   return (
     <ReactMonaco
       className={clsx(
-        "overflow-clip border border-1 border-primary-300 dark:border-primary-600",
+        "border-1 overflow-clip border border-primary-300 dark:border-primary-600",
         className,
       )}
       defaultLanguage="sql"
