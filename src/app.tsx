@@ -4,7 +4,7 @@ import { Toolbar } from "~/components/Toolbar";
 import { FileBrowser } from "~/components/FileBrowser";
 import { IntrospectionViewer } from "~/components/Introspection";
 
-export function App() {
+export default function App() {
   return (
     <div className="flex h-full flex-col">
       <Toolbar />
