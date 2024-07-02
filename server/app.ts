@@ -562,30 +562,40 @@ export const app = new Elysia({
     },
   )
 
-  .get("/playgrounds", async ({ session }) => {
-    const playgrounds = await withAuthContext(session?.id, async sql => {
-      return await sql<
+  .get("/u/:user/playgrounds", async ({ session }) => {
+    return await withAuthContext(session?.id, async sql => {
+      const result = await sql<
         {
           id: number;
           user_id: string;
           fork_id: number | null;
           description: string | null;
+          stars: string | null;
           created_at: Date;
         }[]
       >`
         select
-          id,
-          user_id,
-          fork_id,
-          description,
-          created_at
-        from app_public.playgrounds
+          p.id,
+          p.fork_id,
+          p.title,
+          p.description,
+          stars,
+          p.created_at
+        from
+          app_public.playgrounds p
+          join app_public.users u
+            on p.user_id = u.id
+          lateral (
+            select count(*) as stars
+            from app_public.playground_stars
+          ) as get_stars
         order by created_at desc
         fetch first 50 rows only;
       `;
+      // postgres.js returns a RowList object that needs to be converted to an
+      // array or elysia fails to serialize properly
+      return [...result];
     });
-    // postgres.js returns a weird object that needs to be converted to an array
-    return [...playgrounds];
   })
 
   .get(
