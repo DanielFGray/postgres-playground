@@ -4,12 +4,6 @@ import * as monaco from 'monaco-editor';
 import { loader } from '@monaco-editor/react';
 import ReactMonaco from "@monaco-editor/react";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import "monaco-sql-languages/esm/languages/pgsql/pgsql.contribution";
-import PGSQLWorker from "monaco-sql-languages/esm/languages/pgsql/pgsql.worker?worker";
-import {
-  setupLanguageFeatures,
-  LanguageIdEnum,
-} from "monaco-sql-languages";
 import {
   getCurrentFile,
   executeQuery,
@@ -25,17 +19,14 @@ loader.config({ monaco });
 // @ts-expect-error TODO: figure out how to type globalThis
 globalThis.MonacoEnvironment = {
   getWorker(_, label) {
-    if (label === "sql") {
-      return new PGSQLWorker();
-    }
     return new editorWorker();
   },
 };
 
-setupLanguageFeatures(LanguageIdEnum.PG, {
-  completionItems: {
-    enable: true,
-    completionService,
+monaco.languages.registerCompletionItemProvider("sql", {
+  async provideCompletionItems(monaco, position, context, token) {
+    console.log("provideCompletionItems", position, context, token);
+    return {  }
   },
 });
 

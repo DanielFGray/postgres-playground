@@ -46,7 +46,6 @@
     "@tw-classed/react": "^1.7.0",
     "arctic": "^1.9.1",
     "classnames": "^2.5.1",
-    "monaco-sql-languages": "^0.12.0-beta.12",
     "dotenv": "^16.4.5",
     "elysia": "^1.0.25",
     "graphile-migrate": "^2.0.0-rc.2",
