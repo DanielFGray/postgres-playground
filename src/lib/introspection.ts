@@ -1,4 +1,6 @@
 import {
+  makeIntrospectionQuery,
+  parseIntrospectionResults,
   PgType,
   PgNamespace,
   Introspection as PgIntrospection,
@@ -73,9 +75,11 @@ export class DbIntrospection {
   name: string;
   schemas: Record<string, DbSchema>;
 
-  constructor(introspection: PgIntrospection) {
-    this.#introspection = introspection;
-    this.name = introspection.database.datname;
+  static query = makeIntrospectionQuery()
+
+  constructor({ introspection }: { introspection: string }) {
+    this.#introspection = parseIntrospectionResults(introspection, true);
+    this.name = this.#introspection.database.datname;
     this.schemas = Object.fromEntries(
       introspection.namespaces.map(schema => [
         schema.nspname,
