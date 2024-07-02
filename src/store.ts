@@ -25,12 +25,10 @@ import {
 } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import * as db from "~/db";
-import { Result } from "~/types";
+import type { Results } from "@electric-sql/pglite";
 import { DbSchema } from "~/lib/introspection";
 import { defaultFiles } from "~/queryTemplate";
-import { z } from "zod";
 import { serverApi } from "~/store.serverApi";
-import { base64URLdecode } from "~/lib";
 
 const createSlice = buildCreateSlice({
   creators: { asyncThunk: asyncThunkCreator },
@@ -72,7 +70,7 @@ export const { previewToggled, filebarToggled, introspectionToggled } =
 const querySlice = createSlice({
   name: "queries",
   initialState: {
-    result: null as null | [string, Result][],
+    result: null as null | [string, Results][],
     error: null as null | SerializedError,
     introspection: null as null | Record<string, DbSchema>,
     pending: false,
