@@ -326,8 +326,9 @@ export class DbIntrospection {
             throw new Error(`couldn't find type for proc ${proc.proname}`);
           const name = proc.proname;
           return [
-            proc.proname,
+            name,
             {
+              name,
               kind: "function",
               returnType: getTypeName(type),
               volatility: volatilityMap[proc.provolatile ?? "v"],
