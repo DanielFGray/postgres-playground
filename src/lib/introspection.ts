@@ -94,7 +94,7 @@ export class DbIntrospection {
     this.#introspection = parseIntrospectionResults(introspection, true);
     this.name = this.#introspection.database.datname;
     this.schemas = Object.fromEntries(
-      introspection.namespaces.map(schema => [
+      this.#introspection.namespaces.map(schema => [
         schema.nspname,
         this.processSchema(schema),
       ]),
@@ -105,14 +105,14 @@ export class DbIntrospection {
     return {
       name: schema.nspname,
       kind: "schema",
-      types: this.processTypes(schema.oid),
-      functions: this.processFunctions(schema.oid),
-      tables: this.processTables(schema.oid),
-      views: this.processViews(schema.oid),
+      types: this.#processTypes(schema.oid),
+      functions: this.#processFunctions(schema.oid),
+      tables: this.#processTables(schema.oid),
+      views: this.#processViews(schema.oid),
     };
   }
 
-  processTypes(schemaId: string): Record<string, DbType> {
+  #processTypes(schemaId: string) {
     const domains = this.#introspection.types
       .filter(t => t.typtype === "d" && t.typnamespace === schemaId)
       .map(t => {
@@ -159,13 +159,13 @@ export class DbIntrospection {
     const types: Record<string, DbType> = groupWith(
       (_, b) => b,
       t => t.name,
-      [...domains, ...enums, ...composites],
+      [...domains, ...enums, ...composites]
     );
     return types;
   }
 
-  processViews(schemaId: string): Record<string, DbView> {
-    const views = Object.fromEntries(
+  #processViews(schemaId: string) {
+    return Object.fromEntries(
       this.#introspection.classes
         .filter(view => view.relnamespace === schemaId && view.relkind === "v")
         .map(view => {
@@ -174,9 +174,9 @@ export class DbIntrospection {
             view.relname,
             {
               name: view.relname, // TODO: any other attributes specific to views? references? pseudo-FKs?
-              columns: this.processColumns(view.oid),
-              constraints: this.processReferences(view.oid),
               kind: "view",
+              columns: this.#processColumns(view.oid),
+              constraints: this.#processReferences(view.oid),
               description,
             },
           ];
@@ -185,16 +185,16 @@ export class DbIntrospection {
     return views;
   }
 
-  processTables(schemaId: string): Record<string, DbTable> {
+  #processTables(schemaId: string): Record<string, DbTable> {
     return Object.fromEntries(
       this.#introspection.classes
         .filter(table => table.relnamespace === schemaId && table.relkind === "r")
         .map(table => {
           const name = table.relname;
-          const columns = this.processColumns(table.oid);
+          const columns = this.#processColumns(table.oid);
           const description = getDescription(table);
-          const references = this.processReferences(table.oid);
-          const indexes = this.processIndexes(table.oid);
+          const references = this.#processReferences(table.oid);
+          const indexes = this.#processIndexes(table.oid);
           return [
             name,
             {
@@ -210,7 +210,7 @@ export class DbIntrospection {
     );
   }
 
-  processColumns(tableId: string): Array<DbColumn> {
+  #processColumns(tableId: string): Array<DbColumn> {
     return this.#introspection.attributes
       .filter(column => column.attrelid === tableId)
       .map(column => {
@@ -246,7 +246,7 @@ export class DbIntrospection {
       .sort((a, b) => a.attnum - b.attnum);
   }
 
-  processIndexes(tableId: string): Record<string, DbIndex> {
+  #processIndexes(tableId: string): Record<string, DbIndex> {
     return Object.fromEntries(
       this.#introspection.indexes
         .filter(index => index.indrelid === tableId)
@@ -286,7 +286,7 @@ export class DbIntrospection {
     );
   }
 
-  processReferences(tableId: string): Record<string, DbReference> {
+  #processReferences(tableId: string): Record<string, DbReference> {
     return Object.fromEntries(
       this.#introspection.constraints
         .filter(c => c.conrelid === tableId && c.contype === "f")
@@ -316,7 +316,7 @@ export class DbIntrospection {
     );
   }
 
-  processFunctions(schemaId: string): Record<string, DbFunction> {
+  #processFunctions(schemaId: string): Record<string, DbFunction> {
     return Object.fromEntries(
       this.#introspection.procs
         .filter(proc => proc.pronamespace === schemaId)
