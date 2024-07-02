@@ -53,7 +53,7 @@ export function MonacoEditor({ className }: { className?: string }) {
         "overflow-clip border border-1 border-primary-300 dark:border-primary-600",
         className,
       )}
-      defaultLanguage="pgsql"
+      defaultLanguage="sql"
       path={currentFile.path}
       defaultValue={currentFile.value}
       options={{
