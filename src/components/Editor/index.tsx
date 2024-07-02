@@ -46,7 +46,7 @@ export function Editor({ className }: { className?: string }) {
       defaultValue={currentFile.value}
       options={{
         automaticLayout: true,
-        minimap: { enabled: false },
+        minimap: { autohide: true },
         fontSize: 15,
       }}
       theme={preferDarkMode ? "vs-dark" : "light"}
