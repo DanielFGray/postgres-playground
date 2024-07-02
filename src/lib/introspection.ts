@@ -330,7 +330,7 @@ export class DbIntrospection {
             {
               kind: "function",
               returnType: getTypeName(type),
-              volatility,
+              volatility: volatilityMap[proc.provolatile ?? "v"],
               args: !proc.proargnames
                 ? []
                 : proc.getArguments().map((a, i) => {
@@ -350,6 +350,11 @@ export class DbIntrospection {
   }
 }
 
+const volatilityMap = {
+  i: "immutable",
+  s: "stable",
+  v: "volatile",
+} as const
 
 function getTypeName(type: PgType) {
   return [type.getNamespace()?.nspname, type.typname].join(".");
