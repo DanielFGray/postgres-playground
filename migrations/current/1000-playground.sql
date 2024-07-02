@@ -84,3 +84,23 @@ grant
   insert (playground_id),
   delete
   on app_public.playground_stars to :DATABASE_VISITOR;
+
+create type fork_info as (
+  id int,
+  name text,
+  description text,
+  created_at timestamptz,
+  username citext
+);
+
+create function get_fork(playground app_public.playgrounds) returns app_public.fork_info as $$
+  select
+    fork.id,
+    fork.name,
+    fork.description,
+    fork.created_at,
+    u.username
+  from app_public.playgrounds fork
+    join app_public.users u
+      on fork.user_id = u.id
+$$ language sql stable;

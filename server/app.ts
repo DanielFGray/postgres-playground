@@ -627,8 +627,9 @@ export const app = new Elysia({
               'id', u.id,
               'username', u.username
             ) as user,
-            row_to_json(get_fork) as fork
-          from app_public.playgrounds f
+            to_json(get_fork) as fork
+          from
+            app_public.playgrounds f
             join app_public.users u
               on f.user_id = u.id
             left join app_public.playgrounds fork
@@ -638,14 +639,12 @@ export const app = new Elysia({
               fork.id,
               fork.name,
               fork.description,
-              'user', json_build_object(
-                'id', u.id,
-                'username', u.username
-              )
-              from app_public.playgrounds fork
-                join app_public.users
-                  on fork.user_id = u.id
-            ) as get_fork
+              users.username
+            from
+              app_public.playgrounds fork
+              join app_public.users
+                on fork.user_id = users.id
+          ) as get_fork
           where f.id = ${params.id}::int;
         `;
         return { playground };
