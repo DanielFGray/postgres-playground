@@ -10,6 +10,7 @@ import { PgEntity } from "pg-introspection/dist/introspection";
 
 export type DbSchema = {
   name: string;
+  kind: "schema";
   views: Record<string, DbView>;
   tables: Record<string, DbTable>;
   functions: Record<string, DbFunction>;
@@ -27,6 +28,7 @@ type DbType = DbDomain | DbEnum | DbComposite;
 
 type DbView = {
   name: string;
+  kind: "view";
   columns: Array<DbColumn>;
   constraints: Record<string, DbReference>;
   description: string | undefined;
@@ -34,6 +36,7 @@ type DbView = {
 
 type DbTable = {
   name: string;
+  kind: "table";
   columns: Array<DbColumn>;
   indexes: Record<string, DbIndex>;
   references: Record<string, DbReference>;
@@ -42,6 +45,7 @@ type DbTable = {
 
 export type DbColumn = {
   name: string;
+  kind: "column";
   identity: string | null;
   type: string;
   generated: "STORED" | false;
@@ -53,21 +57,30 @@ export type DbColumn = {
 
 export type DbIndex = {
   name: string;
+  kind: "index";
   colnames: Array<string>;
   isUnique: boolean | null;
   isPrimary: boolean | null;
-  option: Array<number> | null;
+  idxFlags: Array<number> | null;
   type: string | null;
 };
 
 type DbReference = {
   name: string;
+  kind: "reference";
   refPath: {
-    kind: string;
     schemas: string;
     name: string;
     columns: string[];
   };
+};
+
+type DbFunction = {
+  name: string;
+  kind: "function";
+  returnType: string | undefined;
+  args: Array<[string | number, { type: string; hasDefault?: boolean }]>;
+  volatility: "immutable" | "stable" | "volatile";
 };
 
 export class DbIntrospection {
@@ -91,6 +104,7 @@ export class DbIntrospection {
   processSchema(schema: PgNamespace): DbSchema {
     return {
       name: schema.nspname,
+      kind: "schema",
       types: this.processTypes(schema.oid),
       functions: this.processFunctions(schema.oid),
       tables: this.processTables(schema.oid),
@@ -162,6 +176,7 @@ export class DbIntrospection {
               name: view.relname, // TODO: any other attributes specific to views? references? pseudo-FKs?
               columns: this.processColumns(view.oid),
               constraints: this.processReferences(view.oid),
+              kind: "view",
               description,
             },
           ];
@@ -184,6 +199,7 @@ export class DbIntrospection {
             name,
             {
               name,
+              kind: "table",
               columns,
               indexes,
               references,
@@ -215,6 +231,7 @@ export class DbIntrospection {
         const description = getDescription(column);
         return {
           name,
+          kind: "column",
           identity: column.attidentity,
           type: typeName,
           nullable: !column.attnotnull,
@@ -257,6 +274,7 @@ export class DbIntrospection {
             name,
             {
               name,
+              kind: "index",
               isUnique: index.indisunique,
               isPrimary: index.indisprimary,
               option,
@@ -285,6 +303,7 @@ export class DbIntrospection {
             name,
             {
               name,
+              kind: "reference",
               refPath: {
                 kind,
                 schemas: fkeyNsp.nspname,
@@ -305,14 +324,11 @@ export class DbIntrospection {
           const type = proc.getReturnType();
           if (!type)
             throw new Error(`couldn't find type for proc ${proc.proname}`);
-          const volatility = {
-            i: "immutable",
-            s: "stable",
-            v: "volatile",
-          }[proc.provolatile ?? "v"] as "immutable" | "stable" | "volatile";
+          const name = proc.proname;
           return [
             proc.proname,
             {
+              kind: "function",
               returnType: getTypeName(type),
               volatility,
               args: !proc.proargnames
@@ -334,11 +350,6 @@ export class DbIntrospection {
   }
 }
 
-type DbFunction = {
-  returnType: string | undefined;
-  args: Array<[string | number, { type: string; hasDefault?: boolean }]>;
-  volatility: "immutable" | "stable" | "volatile";
-};
 
 function getTypeName(type: PgType) {
   return [type.getNamespace()?.nspname, type.typname].join(".");
