@@ -1,5 +1,6 @@
 import { ExtensionHostKind, registerExtension } from "vscode/extensions";
 import * as vscode from "vscode";
+import { SQLNotebookExecutionController } from "./controller";
 
 const { getApi } = registerExtension(
   {
@@ -29,6 +30,7 @@ void getApi().then(async (vscode) => {
     "markdown-notebook",
     new MarkdownSerializer(),
   );
+  new SQLNotebookExecutionController("markdown-notebook");
 });
 
 export class MarkdownSerializer implements vscode.NotebookSerializer {

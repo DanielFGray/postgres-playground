@@ -5,6 +5,7 @@ import {
   makeIntrospectionQuery,
   parseIntrospectionResults,
 } from "pg-introspection";
+import * as db from '../pglite'
 
 const pgliteExecute = "pglite.execute"
 const databaseExplorer = "database-explorer"
@@ -56,21 +57,6 @@ const { getApi } = registerExtension({
   },
 }, ExtensionHostKind.LocalProcess)
 
-function query<T>(sql: string): Promise<{ rows: T[] }> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ rows: [] });
-    }, 1000);
-  });
-}
-
-void getApi().then(async vscode => {
-  const pgliteOutputChannel = vscode.window.createOutputChannel("PGlite");
-  pgliteOutputChannel.append("Here's some fake output\n");
-
-  vscode.commands.registerCommand(pgliteExecute, query);
-})
-
 export class DatabaseExplorerProvider
   implements vscode.TreeDataProvider<Entity>
 {
@@ -81,7 +67,7 @@ export class DatabaseExplorerProvider
   }
 
   async refresh(): Promise<void> {
-    const result = await query<{introspection: string}>(makeIntrospectionQuery());
+    const result = await db.query<{introspection: string}>(makeIntrospectionQuery(), []);
     this.introspectionResults = parseIntrospectionResults(result.rows[0]?.introspection!, true);
   }
 
@@ -92,7 +78,7 @@ export class DatabaseExplorerProvider
   getChildren(element?: Entity): Entity[] {
     console.log(element)
     if (!this.introspectionResults) return []
-    switch (element.kind) {
+    switch (element?.kind) {
       default:
         return this.introspectionResults.namespaces.map(
           (x) =>
@@ -107,9 +93,19 @@ export class DatabaseExplorerProvider
   }
 }
 
-vscode.window.createTreeView(databaseExplorer, {
-  treeDataProvider: new DatabaseExplorerProvider(),
-});
+export const dbExplorer = new DatabaseExplorerProvider()
+
+void getApi().then(async vscode => {
+  const pgliteOutputChannel = vscode.window.createOutputChannel("PGlite");
+  pgliteOutputChannel.append("Here's some fake output\n");
+
+  vscode.commands.registerCommand(pgliteExecute, db.exec);
+
+  vscode.window.createTreeView(databaseExplorer, {
+    treeDataProvider: dbExplorer,
+  });
+
+})
 
 class Entity extends vscode.TreeItem {
   constructor(
@@ -120,8 +116,6 @@ class Entity extends vscode.TreeItem {
   ) {
     super(label, collapsibleState);
     this.id = `${this.label}-${this.kind}`;
-    this.kind = this.kind;
+    this.kind = kind;
   }
 }
-
-

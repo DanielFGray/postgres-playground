@@ -8,6 +8,7 @@ import "./features/search";
 // import './features/notifications'
 // import './features/terminal'
 // import './features/scm'
+import "./features/postgres";
 import "./features/testing";
 import "./features/ai";
 import "@codingame/monaco-vscode-diff-default-extension";

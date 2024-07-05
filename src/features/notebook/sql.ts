@@ -1,5 +1,6 @@
 import { ExtensionHostKind, registerExtension } from "vscode/extensions";
 import * as vscode from "vscode";
+import { SQLNotebookExecutionController } from "./controller";
 
 const { getApi } = registerExtension(
   {
@@ -24,11 +25,12 @@ const { getApi } = registerExtension(
   ExtensionHostKind.LocalProcess,
 );
 
-void getApi().then(async (vscode) => {
+void getApi().then(async vscode => {
   vscode.workspace.registerNotebookSerializer(
     "sql-notebook",
     new SQLSerializer(),
   );
+  new SQLNotebookExecutionController("sql-notebook");
 });
 
 // Cell block delimiter
