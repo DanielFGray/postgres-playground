@@ -126,7 +126,6 @@
     "@elysiajs/eden": "^1.0.14",
     "@lucia-auth/adapter-postgresql": "^3.1.2",
     "@octokit/webhooks": "^13.2.7",
-    "@reduxjs/toolkit": "^2.2.5",
     "arctic": "^1.9.1",
     "classnames": "^2.5.1",
     "dotenv": "^16.4.5",
@@ -143,13 +142,11 @@
     "pg-introspection": "^0.0.1-beta.8",
     "postgres": "github:DanielFGray/postgres.js",
     "postgres-semicolons": "^0.1.2",
-    "redux-persist": "^6.0.0"
+    "sql-formatter": "^15.3.2"
   },
   "devDependencies": {
     "@codingame/esbuild-import-meta-url-plugin": "^1.0.2",
     "@danielfgray/tw-heropatterns": "^0.1.6",
-    "@tailwindcss/forms": "^0.5.7",
-    "@tailwindcss/typography": "^0.5.13",
     "@ts-safeql/eslint-plugin": "^3.3.1",
     "@types/bun": "^1.1.5",
     "@types/html-to-text": "~9.0.4",
@@ -166,10 +163,7 @@
     "eslint-plugin-jsx-a11y": "^6.9.0",
     "inquirer": "^9.2.23",
     "libpg-query": "^16.2.0",
-    "postcss": "^8.4.38",
     "prettier": "^3.3.2",
-    "prettier-plugin-tailwindcss": "^0.6.5",
-    "tailwindcss": "^3.4.4",
     "typescript": "^5.5.2",
     "vite": "^5.3.1",
     "vite-tsconfig-paths": "^4.3.2"
