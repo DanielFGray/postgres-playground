@@ -23,9 +23,9 @@
     "editor.experimental.asyncTokenization": true,
     "terminal.integrated.tabs.title": "${sequence}",
     "editor.minimap.autohide": true,
-    "window.commandCenter": true,
-    "workbench.layoutControl.enabled": true,
+    "window.commandCenter": false,
+    "workbench.layoutControl.enabled": false,
     "workbench.sideBar.location": "right",
-    "window.menuBarVisibility": "classic"
+    "workbench.activityBar.location": "hidden"
 }
 
