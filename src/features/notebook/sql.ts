@@ -47,7 +47,7 @@ export class SQLSerializer implements vscode.NotebookSerializer {
     const cells = blocks.map((query) => {
       if (
         (query.startsWith("/*") && query.endsWith("*/")) ||
-        query.startsWith("-- ")
+        query.split('\n').every(line => line.startsWith("-- "))
       ) {
         return new vscode.NotebookCellData(
           vscode.NotebookCellKind.Markup,

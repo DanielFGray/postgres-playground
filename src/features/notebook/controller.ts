@@ -1,8 +1,9 @@
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 import * as db from "../../pglite";
 import { zip } from "../../lib";
 import * as semicolons from "postgres-semicolons";
 import { Results } from "@electric-sql/pglite";
+import { PGLITE_EXECUTE, PGLITE_INTROSPECT } from "../postgres";
 
 export class SQLNotebookExecutionController {
   readonly #controller: vscode.NotebookController;
@@ -24,7 +25,7 @@ export class SQLNotebookExecutionController {
     _notebook: vscode.NotebookDocument,
     _controller: vscode.NotebookController,
   ): void {
-    for (let cell of cells) {
+    for (const cell of cells) {
       this.#doExecution(cell);
     }
   }
@@ -33,23 +34,53 @@ export class SQLNotebookExecutionController {
     const execution = this.#controller.createNotebookCellExecution(cell);
     execution.executionOrder = ++this.#executionOrder;
     const text = cell.document.getText();
+    const splits = semicolons.parseSplits(text, false);
+    const queries = semicolons.splitStatements(text, splits.positions, true);
     execution.start(Date.now());
-    const { positions } = semicolons.parseSplits(text, false);
-    const queries = semicolons.nonEmptyStatements(text, positions);
-    const raw = await db.exec(text);
+    const raw = await vscode.commands.executeCommand(PGLITE_EXECUTE, text);
     const results = zip(queries, raw);
     execution.replaceOutput(
       results.map(([query, result]) => {
         if ("error" in result) {
           return new vscode.NotebookCellOutput([
-            vscode.NotebookCellOutputItem.error(result.error),
+            vscode.NotebookCellOutputItem.text(
+              `<span style="font-weight:550;">${result.error.message}</span>`,
+              "text/markdown",
+            ),
           ]);
         }
         if (!result.fields.length) {
+          if (
+            ["create", "alter", "drop"].some(stmt =>
+              query.toLowerCase().startsWith(stmt),
+            )
+          ) {
+            vscode.commands.executeCommand(PGLITE_INTROSPECT);
+          }
+          // TODO: find out why text/plain throws renderer error
+          const stmtSplits = query.split(" ");
+          switch (true) {
+            case query.startsWith("create or replace"):
+              return new vscode.NotebookCellOutput([
+                vscode.NotebookCellOutputItem.text(
+                  [stmtSplits[0], stmtSplits[3]].join(" ").toUpperCase(),
+                  "text/markdown",
+                ),
+              ]);
+            case query.startsWith("create"):
+            case query.startsWith("alter"):
+            case query.startsWith("drop"):
+              return new vscode.NotebookCellOutput([
+                vscode.NotebookCellOutputItem.text(
+                  [stmtSplits[0], stmtSplits[1]].join(" ").toUpperCase(),
+                  "text/markdown",
+                ),
+              ]);
+          }
+
           return new vscode.NotebookCellOutput([
             vscode.NotebookCellOutputItem.text(
-              query.split(" ").slice(0, 2).join(" ").toUpperCase(),
-              // TODO: find out why text/plain throws renderer error
+              stmtSplits[0].toUpperCase(),
               "text/markdown",
             ),
           ]);
@@ -68,30 +99,26 @@ export class SQLNotebookExecutionController {
 
 function renderRowsAsTable({
   query,
-  result,
+  result: { rows, fields },
 }: {
   query: string;
   result: Results;
 }): string {
-  const head =
-    result.fields.length < 1
+  return `<table>${
+    fields.length < 1
       ? null
-      : `
-<thead>
-  <tr>${result.fields.map(col => `<th>${col.name}</th>`)}</tr>
-</thead>
-  `.trim();
-  const rows = `<tbody>${
-    result.fields.length < 1
+      : `<thead><tr>${fields.map(col => `<th>${col.name}</th>`)}</tr></thead>`
+  }<tbody>${
+    fields.length < 1
       ? `<tr><td>${query.split(" ").slice(0, 2).join(" ").toUpperCase()}</td></tr>`
-      : result.rows.length < 1
-        ? `<tr> <td colspan=${result.fields.length}>No results</td></tr>`
-        : result.rows.map(
-            row => `<tr>${result.fields.map(f => {
-              const value = row[f.name]
-              return `<td>${['string', 'number'].includes(typeof value) ? value : JSON.stringify(value)}</td>`;
-            })}</tr>`,
+      : rows.length < 1
+        ? `<tr><td colspan=${fields.length}>No results</td></tr>`
+        : rows.map(
+            row =>
+              `<tr>${fields.map(f => {
+                const value = row[f.name];
+                return `<td>${["object"].includes(typeof value) ? JSON.stringify(value, null, 2) : value}</td>`;
+              })}</tr>`,
           )
-  }</tbody>`;
-  return `<table>${head}${rows}</table>`.trim();
+  }</tbody></table>`;
 }

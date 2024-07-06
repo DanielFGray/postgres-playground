@@ -93,12 +93,13 @@ interface ICodeBlockStart {
  * between the start and end blocks, etc. This is good enough for typical use cases.
  */
 function parseCodeBlockStart(line: string): ICodeBlockStart | null {
-  const match = line.match(/(    |\t)?```(\S*)/);
-  if (!match || !(match[1] && match[2])) return null
+  const match = line.match(/( {4}|\t)?```(\S*)/);
+  console.log(match)
+  if (!match) return null;
   return {
     indentation: match[1],
     langId: match[2],
-  }
+  };
 }
 
 function isCodeBlockStart(line: string): boolean {
