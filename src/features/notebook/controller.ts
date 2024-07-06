@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
-import { zip } from "~lib/index";
+import { zip } from "~lib";
 import * as semicolons from "postgres-semicolons";
 import { Results } from "@electric-sql/pglite";
-import { PGLITE_EXECUTE, PGLITE_INTROSPECT } from "../postgres";
+import { PGLITE_EXECUTE, PGLITE_INTROSPECT } from "../constants";
 
 export class SQLNotebookExecutionController {
   readonly #controller: vscode.NotebookController;

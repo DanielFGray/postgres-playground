@@ -2,11 +2,7 @@ import * as vscode from "vscode";
 import { ExtensionHostKind, registerExtension } from "vscode/extensions";
 import { PGlite } from "@electric-sql/pglite"
 import { DatabaseExplorerProvider } from "./introspection";
-
-export const PGLITE_EXECUTE = "pglite.execute";
-export const PGLITE_RESET = "pglite.reset";
-export const DATABASE_EXPLORER = "databaseExplorer";
-export const PGLITE_INTROSPECT = "introspection.refresh";
+import { PGLITE_RESET, PGLITE_EXECUTE, PGLITE_INTROSPECT, DATABASE_EXPLORER } from "./constants";
 
 const { getApi } = registerExtension(
   {

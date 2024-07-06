@@ -4,7 +4,7 @@ import {
   makeIntrospectionQuery,
   parseIntrospectionResults,
 } from "pg-introspection";
-import { PGLITE_EXECUTE } from "./postgres";
+import { PGLITE_EXECUTE } from "./constants";
 
 export class DatabaseExplorerProvider
   implements vscode.TreeDataProvider<Entity>
