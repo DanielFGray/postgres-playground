@@ -3,7 +3,7 @@ import { Elysia, t } from "elysia";
 import { Logestic } from "logestic";
 import Postgres from "postgres";
 import { Lucia } from "lucia";
-import { templateHack as gql } from "../src/lib";
+import { templateHack as gql } from "~lib/index";
 import {
   GitHub,
   OAuth2RequestError,

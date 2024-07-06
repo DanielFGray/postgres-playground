@@ -1,8 +1,8 @@
 import { describe, it, expect, afterAll } from "bun:test";
 import Postgres from "postgres";
 import { treaty } from "@elysiajs/eden";
-import { generateStr } from "~/lib";
-import { type App, lucia } from "./app";
+import { generateStr } from "~lib/index";
+import { type App, lucia } from "~server/app";
 import "./assertEnv";
 
 const { DATABASE_URL, PORT } = process.env;
