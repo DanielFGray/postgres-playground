@@ -146,7 +146,6 @@
   },
   "devDependencies": {
     "@codingame/esbuild-import-meta-url-plugin": "^1.0.2",
-    "@danielfgray/tw-heropatterns": "^0.1.6",
     "@ts-safeql/eslint-plugin": "^3.3.1",
     "@types/bun": "^1.1.5",
     "@types/html-to-text": "~9.0.4",
