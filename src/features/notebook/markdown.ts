@@ -25,7 +25,7 @@ const { getApi } = registerExtension(
   ExtensionHostKind.LocalProcess,
 );
 
-void getApi().then(async (vscode) => {
+void getApi().then(async vscode => {
   vscode.workspace.registerNotebookSerializer(
     "markdown-notebook",
     new MarkdownSerializer(),
@@ -112,16 +112,17 @@ function isCodeBlockEndLine(line: string): boolean {
 
 export function parseMarkdown(content: string): RawNotebookCell[] {
   const lines = content.split(/\r?\n/g);
-  let cells: RawNotebookCell[] = [];
+  const cells: RawNotebookCell[] = [];
   let i = 0;
 
   // Each parse function starts with line i, leaves i on the line after the last line parsed
-  for (; i < lines.length;) {
+  for (; i < lines.length; ) {
     const leadingWhitespace = i === 0 ? parseWhitespaceLines(true) : "";
     if (i >= lines.length) {
       break;
     }
     const codeBlockMatch = parseCodeBlockStart(lines[i]!);
+    console.log({ line: lines[i], codeBlockMatch });
     if (codeBlockMatch) {
       parseCodeBlock(leadingWhitespace, codeBlockMatch);
     } else {
@@ -130,10 +131,10 @@ export function parseMarkdown(content: string): RawNotebookCell[] {
   }
 
   function parseWhitespaceLines(isFirst: boolean): string {
-    let start = i;
+    const start = i;
     const nextNonWhitespaceLineOffset = lines
       .slice(start)
-      .findIndex((l) => l !== "");
+      .findIndex(l => l !== "");
     let end: number; // will be next line or overflow
     let isLast = false;
     if (nextNonWhitespaceLineOffset < 0) {
@@ -167,7 +168,7 @@ export function parseMarkdown(content: string): RawNotebookCell[] {
 
     const content = lines
       .slice(startSourceIdx, i - 1)
-      .map((line) =>
+      .map(line =>
         line.replace(new RegExp("^" + codeBlockStart.indentation), ""),
       )
       .join("\n");
@@ -226,7 +227,7 @@ export function writeCellsToMarkdown(
       const codePrefix = indentation + "```" + cell.languageId + "\n";
       const contents = cell.value
         .split(/\r?\n/g)
-        .map((line) => indentation + line)
+        .map(line => indentation + line)
         .join("\n");
       const codeSuffix = "\n" + indentation + "```";
 
