@@ -3,23 +3,19 @@ export default function getWorkspace() {
     defaultLayout: {
       editors: [
         {
-          uri: "/00100-posts.sql",
+          uri: "/example.md",
           viewColumn: 1,
-        },
-        {
-          uri: "/test.md",
-          viewColumn: 2,
         },
       ],
       layout: {
         editors: {
           orientation: 0,
-          groups: [{ size: 1 }, { size: 1 }],
+          groups: [{ size: 1 }],
         },
       },
     },
     files: {
-      "/test.md": `
+      "/example.md": `
 some seed data
 
 \`\`\`sql
@@ -29,6 +25,7 @@ with make_user(id) as (
 )
 insert into app_public.posts (user_id, title, body, tags)
   values ((select id from make_user), 'Hello world', 'This is a test post', '{test}')
+  returning *;
 \`\`\`
 
 a query
@@ -38,8 +35,9 @@ select
   posts.id,
   posts.tags,
   posts.title,
-  posts.created_at,
-  posts.updated_at,
+  score,
+  popularity,
+  current_user_voted,
   json_build_object(
     'id', u.id,
     'name', u.name,
@@ -47,15 +45,14 @@ select
     'avatar_url', u.avatar_url,
     'role', role
   ) as user,
-  score,
-  popularity,
-  current_user_voted
+  posts.created_at,
+  posts.updated_at
 from
   app_public.posts
   join app_public.users u on posts.user_id = u.id,
   lateral app_public.posts_score(posts) as score,
   lateral app_public.posts_popularity(posts) as popularity,
-  lateral app_public.posts_current_user_voted(posts) as current_user_voted
+  lateral app_public.posts_current_user_voted(posts) as current_user_voted;
 \`\`\`
 
 some more text
@@ -64,9 +61,11 @@ some more text
 drop schema if exists app_public cascade;
 drop schema if exists app_hidden cascade;
 drop schema if exists app_private cascade;
+drop owned by appname_visitor cascade;
 drop role if exists appname_visitor;
 
 create role appname_visitor;
+
 /*
  * The \`public\` *schema* contains things like PostgreSQL extensions. We
  * deliberately do not install application logic into the public schema
@@ -84,7 +83,7 @@ revoke all on schema public from public;
 alter default privileges revoke all on sequences from public;
 alter default privileges revoke all on functions from public;
 
-/* https://www.graphile.org/postgraphile/namespaces/#advice */
+-- https://www.graphile.org/postgraphile/namespaces/#advice
 
 create schema app_public;
 create schema app_hidden;
