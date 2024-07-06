@@ -7,6 +7,9 @@ import pkg from "./package.json" assert { type: "json" };
 export default defineConfig({
   build: {
     target: "esnext",
+    rollupOptions: {
+      external: ['~lib']
+    },
   },
   server: {
     port: 3000,

@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
-import * as db from "../../pglite";
-import { zip } from "../../lib";
+import { zip } from "~lib/index";
 import * as semicolons from "postgres-semicolons";
 import { Results } from "@electric-sql/pglite";
 import { PGLITE_EXECUTE, PGLITE_INTROSPECT } from "../postgres";
