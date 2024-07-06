@@ -2,7 +2,9 @@
 
 a postgres IDE for your browser
 
-## getting started
+https://postgres-playground.dfg.codes
+
+## development
 
 ### prerequisites
 
