@@ -5,6 +5,4 @@ module.exports = {
   semi: true,
   singleQuote: false,
   arrowParens: "avoid",
-  tailwindFunctions: ["clsx", "classed"],
-  plugins: ['prettier-plugin-tailwindcss'],
 };
