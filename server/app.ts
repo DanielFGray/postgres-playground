@@ -340,11 +340,22 @@ export const app = new Elysia({
               })
             ).json();
 
-            if (sponsorInfo.data.user.isViewer) {
-              await sql`update app_public.users set role = 'admin' where id = ${linkUser.id}::uuid;`;
-            }
-
             console.log(JSON.stringify(sponsorInfo, null, 2));
+
+            switch (true) {
+              case sponsorInfo.user.isViewer:
+                await sql`update app_public.users set role = 'admin' where id = ${linkUser.id}::uuid;`;
+                console.log("github user %s is admin", userInformation.login);
+                break;
+              case sponsorInfo.user.isSponsoringViewer:
+                await sql`update app_public.users set role = 'sponsor' where id = ${linkUser.id}::uuid;`;
+                console.log("github user %s is sponsor", userInformation.login);
+                break;
+              case sponsorInfo.repository.collaborators.totalCount > 0:
+                await sql`update app_public.users set role = 'sponsor' where id = ${linkUser.id}::uuid;`;
+                console.log("github user %s is collaborator", userInformation.login);
+                break;
+            }
           }
         }
 
