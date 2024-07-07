@@ -117,7 +117,9 @@ const getGithubSponsorInfo = gql`
     user(login: $user) {
       isSponsoringViewer
       isViewer
-      sponsorshipForViewerAsSponsorable(activeOnly: true) {
+      sponsorshipForViewerAsSponsorable {
+        isActive
+        isOneTimePayment
         tier {
           name
           monthlyPriceInDollars
