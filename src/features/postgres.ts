@@ -142,8 +142,10 @@ void getApi().then(async vscode => {
   // );
 
   const dbExplorer = new DatabaseExplorerProvider()
-  vscode.commands.registerCommand(PGLITE_INTROSPECT, dbExplorer.refresh);
+  const [refreshIntrospection] = throttle(dbExplorer.refresh, 50)
+  vscode.commands.registerCommand(PGLITE_INTROSPECT, refreshIntrospection);
   vscode.window.createTreeView(DATABASE_EXPLORER, {
     treeDataProvider: dbExplorer,
   });
 });
+
