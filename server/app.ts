@@ -108,7 +108,12 @@ if (GITHUB_PAT && GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET) {
 }
 
 const getGithubSponsorInfo = gql`
-  query ($user: String!) {
+  query ($user: String!, $repo: String!, $owner: String!) {
+    repository(owner: $owner, name: $repo) {
+      collaborators(query: $user) {
+        totalCount
+      }
+    }
     user(login: $user) {
       isSponsoringViewer
       isViewer
@@ -316,15 +321,19 @@ export const app = new Elysia({
               return error(500, "Registration failed");
             }
 
-            const sponsorInfo = await (
+            const { data: sponsorInfo } = await (
               await fetch("https://api.github.com/graphql", {
                 headers: {
                   Authorization: `Bearer ${process.env.GITHUB_PAT}`,
                 },
                 method: "POST",
                 body: JSON.stringify({
-                  variables: { user: userInformation.login },
                   query: getGithubSponsorInfo,
+                  variables: {
+                    user: userInformation.login,
+                    owner: 'danielfgray',
+                    repo: 'postgres-playground',
+                  },
                 }),
               })
             ).json();
