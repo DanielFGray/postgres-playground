@@ -1,11 +1,13 @@
-import { registerRemoteExtension } from 'vscode/extensions'
+import { registerRemoteExtension } from "vscode/extensions";
 
 declare global {
   interface Window {
-    rootDirectory?: string
+    rootDirectory?: string;
   }
 }
 
 if (window.rootDirectory != null) {
-  void registerRemoteExtension(`${window.rootDirectory}/src/features/remoteExtensionExample/`)
+  void registerRemoteExtension(
+    `${window.rootDirectory}/src/features/remoteExtensionExample/`,
+  );
 }

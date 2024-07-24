@@ -1,31 +1,30 @@
 {
-    "window.autoDetectColorScheme": true,
-    "workbench.preferredDarkColorTheme": "Default Dark Modern",
-    "workbench.colorTheme": "Default Light Modern",
-    "workbench.iconTheme": "vs-seti",
-    "editor.autoClosingBrackets": "languageDefined",
-    "editor.autoClosingQuotes": "languageDefined",
-    "editor.scrollBeyondLastLine": false,
-    "editor.mouseWheelZoom": true,
-    "editor.wordBasedSuggestions": "off",
-    "editor.acceptSuggestionOnEnter": "on",
-    "editor.foldingHighlight": true,
-    "editor.semanticHighlighting.enabled": true,
-    "editor.bracketPairColorization.enabled": false,
-    "editor.fontSize": 14,
-    "accessibility.signals.lineHasError": {
-        "sound": "on"
-    },
-    "accessibility.signals.onDebugBreak": {
-        "sound": "on"
-    },
-    "files.autoSave": "off",
-    "editor.experimental.asyncTokenization": true,
-    "terminal.integrated.tabs.title": "${sequence}",
-    "editor.minimap.autohide": true,
-    "window.commandCenter": false,
-    "workbench.layoutControl.enabled": false,
-    "workbench.sideBar.location": "right",
-    "workbench.activityBar.location": "hidden"
+  "window.autoDetectColorScheme": true,
+  "workbench.preferredDarkColorTheme": "Default Dark Modern",
+  "workbench.colorTheme": "Default Light Modern",
+  "workbench.iconTheme": "vs-seti",
+  "editor.autoClosingBrackets": "languageDefined",
+  "editor.autoClosingQuotes": "languageDefined",
+  "editor.scrollBeyondLastLine": false,
+  "editor.mouseWheelZoom": true,
+  "editor.wordBasedSuggestions": "off",
+  "editor.acceptSuggestionOnEnter": "on",
+  "editor.foldingHighlight": true,
+  "editor.semanticHighlighting.enabled": true,
+  "editor.bracketPairColorization.enabled": false,
+  "editor.fontSize": 14,
+  "accessibility.signals.lineHasError": {
+    "sound": "on"
+  },
+  "accessibility.signals.onDebugBreak": {
+    "sound": "on"
+  },
+  "files.autoSave": "off",
+  "editor.experimental.asyncTokenization": true,
+  "terminal.integrated.tabs.title": "${sequence}",
+  "editor.minimap.autohide": true,
+  "window.commandCenter": false,
+  "workbench.layoutControl.enabled": false,
+  "workbench.sideBar.location": "right",
+  "workbench.activityBar.location": "hidden"
 }
-

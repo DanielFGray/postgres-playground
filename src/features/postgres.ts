@@ -1,8 +1,13 @@
 import * as vscode from "vscode";
 import { ExtensionHostKind, registerExtension } from "vscode/extensions";
-import { PGlite } from "@electric-sql/pglite"
+import { PGlite } from "@electric-sql/pglite";
 import { DatabaseExplorerProvider } from "./introspection";
-import { PGLITE_RESET, PGLITE_EXECUTE, PGLITE_INTROSPECT, DATABASE_EXPLORER } from "./constants";
+import {
+  PGLITE_RESET,
+  PGLITE_EXECUTE,
+  PGLITE_INTROSPECT,
+  DATABASE_EXPLORER,
+} from "./constants";
 
 const { getApi } = registerExtension(
   {
@@ -74,8 +79,7 @@ const { getApi } = registerExtension(
       viewsWelcome: [
         {
           view: DATABASE_EXPLORER,
-          contents:
-            "Run some commands to see your schema",
+          contents: "Run some commands to see your schema",
         },
       ],
     },
@@ -85,39 +89,48 @@ const { getApi } = registerExtension(
 
 void getApi().then(async vscode => {
   const pgliteOutputChannel = vscode.window.createOutputChannel("PGlite");
-  pgliteOutputChannel.appendLine('starting postgres');
+  pgliteOutputChannel.appendLine("starting postgres");
 
   let db = new PGlite();
-  const { rows: [{ version }] } = await db.query('select version()');
+  const {
+    rows: [{ version }],
+  } = await db.query("select version()");
   pgliteOutputChannel.appendLine(version);
-  void vscode.window.showInformationMessage(['Powered by @electric-sql/pglite', version].join("\n"));
+  void vscode.window.showInformationMessage(
+    ["Powered by @electric-sql/pglite", version].join("\n"),
+  );
 
-  const queryOpts = {}
+  const queryOpts = {};
 
-  vscode.commands.registerCommand(PGLITE_EXECUTE, async function exec(sql: string) {
-    try {
-      pgliteOutputChannel.appendLine(`executing: ${sql}`);
-      const result = await db.exec(sql, queryOpts);
-      result.forEach(stmt => {
-        pgliteOutputChannel.appendLine(
-          stmt.fields.length && stmt.rows.length
-            ? `results: ${stmt.rows.length}`
-            : 'no result'
-        );
-      });
-      return result
-    } catch (error) {
-      pgliteOutputChannel.appendLine(error.message ?? error);
-      return [{ error }]
-    }
-  });
+  vscode.commands.registerCommand(
+    PGLITE_EXECUTE,
+    async function exec(sql: string) {
+      try {
+        pgliteOutputChannel.appendLine(`executing: ${sql}`);
+        const result = await db.exec(sql, queryOpts);
+        result.forEach(stmt => {
+          pgliteOutputChannel.appendLine(
+            stmt.fields.length && stmt.rows.length
+              ? `results: ${stmt.rows.length}`
+              : "no result",
+          );
+        });
+        return result;
+      } catch (error) {
+        pgliteOutputChannel.appendLine(error.message ?? error);
+        return [{ error }];
+      }
+    },
+  );
 
   vscode.commands.registerCommand(PGLITE_RESET, async function reset() {
-    pgliteOutputChannel.appendLine('restarting postgres');
-    if (db) await db.close()
-    db = new PGlite()
-    await db.query('select 1');
-    const { rows: [{ version }] } = await db.query('select version()');
+    pgliteOutputChannel.appendLine("restarting postgres");
+    if (db) await db.close();
+    db = new PGlite();
+    await db.query("select 1");
+    const {
+      rows: [{ version }],
+    } = await db.query("select version()");
     pgliteOutputChannel.appendLine(version);
   });
 
@@ -141,11 +154,10 @@ void getApi().then(async vscode => {
   // )
   // );
 
-  const dbExplorer = new DatabaseExplorerProvider()
-  const [refreshIntrospection] = throttle(dbExplorer.refresh, 50)
+  const dbExplorer = new DatabaseExplorerProvider();
+  const [refreshIntrospection] = throttle(dbExplorer.refresh, 50);
   vscode.commands.registerCommand(PGLITE_INTROSPECT, refreshIntrospection);
   vscode.window.createTreeView(DATABASE_EXPLORER, {
     treeDataProvider: dbExplorer,
   });
 });
-

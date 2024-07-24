@@ -1,14 +1,17 @@
-import type * as vscode from 'vscode'
-import { ExtensionHostKind, registerExtension } from 'vscode/extensions'
+import type * as vscode from "vscode";
+import { ExtensionHostKind, registerExtension } from "vscode/extensions";
 
-const { getApi } = registerExtension({
-  name: 'fake-intellisense',
-  publisher: 'codingame',
-  version: '1.0.0',
-  engines: {
-    vscode: '*'
-  }
-}, ExtensionHostKind.LocalProcess)
+const { getApi } = registerExtension(
+  {
+    name: "fake-intellisense",
+    publisher: "codingame",
+    version: "1.0.0",
+    engines: {
+      vscode: "*",
+    },
+  },
+  ExtensionHostKind.LocalProcess,
+);
 
 void getApi().then(async api => {
   // api.languages.registerCallHierarchyProvider('javascript', {
@@ -37,7 +40,6 @@ void getApi().then(async api => {
   //     return []
   //   }
   // })
-
   // api.languages.registerHoverProvider('javascript', {
   //   async provideHover (document, position) {
   //     return {
@@ -48,7 +50,6 @@ void getApi().then(async api => {
   //     }
   //   }
   // })
-
   // api.languages.registerCompletionItemProvider('javascript', {
   //   provideCompletionItems () {
   //     return [{
@@ -58,7 +59,6 @@ void getApi().then(async api => {
   //     }]
   //   }
   // })
-
   // api.languages.registerDefinitionProvider('javascript', {
   //   provideDefinition (document, position) {
   //     const wordRange = document.getWordRangeAtPosition(position)
@@ -71,4 +71,4 @@ void getApi().then(async api => {
   //     return []
   //   }
   // })
-})
+});

@@ -128,7 +128,7 @@ const params = url.searchParams;
 export const remoteAuthority = params.get("remoteAuthority") ?? undefined;
 export const connectionToken = params.get("connectionToken") ?? undefined;
 export const remotePath =
-  remoteAuthority != null ? params.get("remotePath") ?? undefined : undefined;
+  remoteAuthority != null ? (params.get("remotePath") ?? undefined) : undefined;
 
 window.history.replaceState({}, document.title, url.href);
 

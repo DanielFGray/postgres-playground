@@ -39,7 +39,9 @@ async function readDotenv() {
  */
 async function createConfig(config) {
   const packageJson = JSON.parse(await fs.readFile("./package.json", "utf8"));
-  const packageName = (packageJson?.name || import.meta.dirname.split("/").at(-1))
+  const packageName = (
+    packageJson?.name || import.meta.dirname.split("/").at(-1)
+  )
     .replace(/\W/g, "_")
     .replace(/__+/g, "")
     .replace(/^_/, "");
@@ -159,43 +161,46 @@ async function createConfig(config) {
       })
     ).genpwd
       ? {
-        ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD ?? generatePassword(18),
-        DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD ?? generatePassword(18),
-        DATABASE_AUTHENTICATOR_PASSWORD:
+          ROOT_DATABASE_PASSWORD:
+            config?.ROOT_DATABASE_PASSWORD ?? generatePassword(18),
+          DATABASE_OWNER_PASSWORD:
+            config?.DATABASE_OWNER_PASSWORD ?? generatePassword(18),
+          DATABASE_AUTHENTICATOR_PASSWORD:
             config?.DATABASE_AUTHENTICATOR_PASSWORD ?? generatePassword(18),
-        SHADOW_DATABASE_PASSWORD: config?.SHADOW_DATABASE_PASSWORD ?? generatePassword(18),
-        SECRET: config?.SECRET ?? generatePassword(32),
-      }
+          SHADOW_DATABASE_PASSWORD:
+            config?.SHADOW_DATABASE_PASSWORD ?? generatePassword(18),
+          SECRET: config?.SECRET ?? generatePassword(32),
+        }
       : await inquirer.prompt(
-        [
-          {
-            name: "ROOT_DATABASE_PASSWORD",
-            default: () => generatePassword(18),
-            prefix: "",
-          },
-          {
-            name: "DATABASE_OWNER_PASSWORD",
-            default: () => generatePassword(18),
-            prefix: "",
-          },
-          {
-            name: "DATABASE_AUTHENTICATOR_PASSWORD",
-            default: () => generatePassword(18),
-            prefix: "",
-          },
-          {
-            name: "SHADOW_DATABASE_PASSWORD",
-            default: () => generatePassword(18),
-            prefix: "",
-          },
-          {
-            name: "SECRET (used for signing tokens)",
-            default: () => generatePassword(32),
-            prefix: "",
-          },
-        ],
-        PASSWORDS,
-      );
+          [
+            {
+              name: "ROOT_DATABASE_PASSWORD",
+              default: () => generatePassword(18),
+              prefix: "",
+            },
+            {
+              name: "DATABASE_OWNER_PASSWORD",
+              default: () => generatePassword(18),
+              prefix: "",
+            },
+            {
+              name: "DATABASE_AUTHENTICATOR_PASSWORD",
+              default: () => generatePassword(18),
+              prefix: "",
+            },
+            {
+              name: "SHADOW_DATABASE_PASSWORD",
+              default: () => generatePassword(18),
+              prefix: "",
+            },
+            {
+              name: "SECRET (used for signing tokens)",
+              default: () => generatePassword(32),
+              prefix: "",
+            },
+          ],
+          PASSWORDS,
+        );
   }
 
   const envFile = Object.entries({

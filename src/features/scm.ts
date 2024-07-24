@@ -17,7 +17,7 @@ const { getApi } = registerExtension(
   },
 );
 
-void getApi().then(async (vscode) => {
+void getApi().then(async vscode => {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (workspaceFolder == null) {
     return;

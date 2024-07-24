@@ -333,8 +333,8 @@ export const app = new Elysia({
                   query: getGithubSponsorInfo,
                   variables: {
                     user: userInformation.login,
-                    owner: 'danielfgray',
-                    repo: 'postgres-playground',
+                    owner: "danielfgray",
+                    repo: "postgres-playground",
                   },
                 }),
               })
@@ -353,7 +353,10 @@ export const app = new Elysia({
                 break;
               case sponsorInfo.repository.collaborators.totalCount > 0:
                 await sql`update app_public.users set role = 'sponsor' where id = ${linkUser.id}::uuid;`;
-                console.log("github user %s is collaborator", userInformation.login);
+                console.log(
+                  "github user %s is collaborator",
+                  userInformation.login,
+                );
                 break;
             }
           }
@@ -679,8 +682,9 @@ export const app = new Elysia({
     async ({ headers, body, error }) => {
       const signature = headers["x-hub-signature-256"];
       const valid = await webhooks.verify(JSON.stringify(body), signature);
-      if (!valid) return error(400, { type: "Error", message: "Invalid signature" });
-      getWorker().addJob('processWebhook', body)
+      if (!valid)
+        return error(400, { type: "Error", message: "Invalid signature" });
+      getWorker().addJob("processWebhook", body);
       return { ok: true };
     },
     {

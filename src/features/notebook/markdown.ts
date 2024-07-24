@@ -94,7 +94,7 @@ interface ICodeBlockStart {
  */
 function parseCodeBlockStart(line: string): ICodeBlockStart | null {
   const match = line.match(/( {4}|\t)?```(\S*)/);
-  console.log(match)
+  console.log(match);
   if (!match) return null;
   return {
     indentation: match[1],
