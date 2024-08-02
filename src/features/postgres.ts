@@ -124,7 +124,7 @@ void getApi().then(async vscode => {
   );
 
   vscode.commands.registerCommand(PGLITE_RESET, async function reset() {
-    pgliteOutputChannel.appendLine("restarting postgres");
+    pgliteOutputChannel.replace("restarting postgres\n");
     if (db) await db.close();
     db = new PGlite();
     await db.query("select 1");
