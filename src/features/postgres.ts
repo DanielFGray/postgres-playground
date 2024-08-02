@@ -106,14 +106,25 @@ void getApi().then(async vscode => {
     PGLITE_EXECUTE,
     async function exec(sql: string) {
       try {
-        pgliteOutputChannel.appendLine(`executing: ${sql}`);
-        const result = await db.exec(sql, queryOpts);
+        const raw = await db.exec(sql, queryOpts);
+        const splits = semicolons.parseSplits(sql, false);
+        const queries = semicolons.splitStatements(sql, splits.positions, true);
+        const result = zip(queries, raw).map(([q, r]) => {
+          const stmtSplits = q.slice(0, 30).split(/\s+/);
+          return {
+            ...r,
+            query: q,
+            statement: q.startsWith("create or replace")
+              ? [stmtSplits[0], stmtSplits[3]].join(" ").toUpperCase()
+              : q.startsWith("create") ||
+                  q.startsWith("alter") ||
+                  q.startsWith("drop")
+                ? [stmtSplits[0], stmtSplits[1]].join(" ").toUpperCase()
+                : stmtSplits[0].toUpperCase(),
+          };
+        });
         result.forEach(stmt => {
-          pgliteOutputChannel.appendLine(
-            stmt.fields.length && stmt.rows.length
-              ? `results: ${stmt.rows.length}`
-              : "no result",
-          );
+          pgliteOutputChannel.appendLine(stmt.statement);
         });
         return result;
       } catch (error) {
