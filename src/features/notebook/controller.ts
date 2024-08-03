@@ -43,7 +43,7 @@ export class SQLNotebookExecutionController {
         if ("error" in result) {
           return new vscode.NotebookCellOutput([
             vscode.NotebookCellOutputItem.text(
-              `<span style="font-weight:550;">${result.error.message}</span>`,
+              `<div style="font-weight:550;background:#f009;padding:0.25em;color:white;">${result.error.message}</div>`,
               "text/markdown",
             ),
           ]);
