@@ -116,7 +116,7 @@ function renderRowsAsTable({
             row =>
               `<tr>${fields.map(f => {
                 const value = row[f.name];
-                return `<td>${["object"].includes(typeof value) ? JSON.stringify(value, null, 2) : value}</td>`;
+                return `<td style="white-space:pre">${["object"].includes(typeof value) ? JSON.stringify(value, null, 2) : value}</td>`;
               })}</tr>`,
           )
   }</tbody></table>`;
