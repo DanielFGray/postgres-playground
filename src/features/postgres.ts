@@ -1,6 +1,28 @@
 import * as vscode from "vscode";
 import { ExtensionHostKind, registerExtension } from "vscode/extensions";
 import { PGlite } from "@electric-sql/pglite";
+import { live } from "@electric-sql/pglite/live";
+import { vector } from "@electric-sql/pglite/vector";
+import { amcheck } from "@electric-sql/pglite/contrib/amcheck";
+import { auto_explain } from "@electric-sql/pglite/contrib/auto_explain";
+import { bloom } from "@electric-sql/pglite/contrib/bloom";
+import { btree_gin } from "@electric-sql/pglite/contrib/btree_gin";
+import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
+import { citext } from "@electric-sql/pglite/contrib/citext";
+import { cube } from "@electric-sql/pglite/contrib/cube";
+import { earthdistance } from "@electric-sql/pglite/contrib/earthdistance";
+import { fuzzystrmatch } from "@electric-sql/pglite/contrib/fuzzystrmatch";
+import { hstore } from "@electric-sql/pglite/contrib/hstore";
+import { isn } from "@electric-sql/pglite/contrib/isn";
+import { lo } from "@electric-sql/pglite/contrib/lo";
+import { ltree } from "@electric-sql/pglite/contrib/ltree";
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
+import { seg } from "@electric-sql/pglite/contrib/seg";
+import { tablefunc } from "@electric-sql/pglite/contrib/tablefunc";
+import { tcn } from "@electric-sql/pglite/contrib/tcn";
+import { tsm_system_rows } from "@electric-sql/pglite/contrib/tsm_system_rows";
+import { tsm_system_time } from "@electric-sql/pglite/contrib/tsm_system_time";
+import { uuid_ossp } from "@electric-sql/pglite/contrib/uuid_ossp";
 import { DatabaseExplorerProvider } from "./introspection";
 import {
   registerCustomView,
@@ -145,7 +167,36 @@ const { getApi } = registerExtension(
 //   // }]
 // });
 
-let db = new PGlite();
+let db = makePglite();
+
+function makePglite() {
+  return new PGlite(undefined, {
+    extensions: {
+      live,
+      vector,
+      amcheck,
+      auto_explain,
+      bloom,
+      btree_gin,
+      btree_gist,
+      citext,
+      cube,
+      earthdistance,
+      fuzzystrmatch,
+      hstore,
+      isn,
+      lo,
+      ltree,
+      pg_trgm,
+      seg,
+      tablefunc,
+      tcn,
+      tsm_system_rows,
+      tsm_system_time,
+      uuid_ossp,
+    },
+  });
+}
 const version = db.query("select version()");
 
 void getApi().then(async vscode => {
@@ -213,7 +264,7 @@ void getApi().then(async vscode => {
   vscode.commands.registerCommand(PGLITE_RESET, async function reset() {
     pgliteOutputChannel.replace("restarting postgres\n");
     if (db) await db.close();
-    db = new PGlite();
+    db = makePglite();
     await db.query("select 1");
     const {
       rows: [{ version }],
