@@ -31,7 +31,7 @@ to run the whole dev server
 bun dev
 ```
 
-to only run the client
+to only run the client  
 
 ```sh
 bun dev:client
