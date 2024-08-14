@@ -167,6 +167,7 @@ const { getApi } = registerExtension(
 //   // }]
 // });
 
+
 let db = makePglite();
 
 function makePglite() {
