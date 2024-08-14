@@ -59,7 +59,10 @@ export function generateStr(
 /**
  * silly hack to enable syntax highlighting
  */
-export function templateHack<T>(strings: TemplateStringsArray, ...interpolations: Array<T>) {
+export function templateHack<T>(
+  strings: TemplateStringsArray,
+  ...interpolations: Array<T>
+) {
   let result = "";
   for (let i = 0; i < strings.length; i++) {
     result += strings[i];
@@ -72,7 +75,7 @@ export function templateHack<T>(strings: TemplateStringsArray, ...interpolations
 
 export function throttle<R, A extends any[]>(
   fn: (...args: A) => R,
-  delay: number
+  delay: number,
 ): [(...args: A) => R | undefined, () => void] {
   let wait = false;
   let timeout: undefined | number;

@@ -21,7 +21,7 @@ describe("auth:user", () => {
 
   it("can register", async () => {
     const { headers, data, error } = await app.register.post(user);
-    expect(error).toBeNull();
+    expect(error?.value).toBeUndefined();
     expect(data).not.toBeNull();
     expect(headers).toBeDefined();
     if (!data) return;
@@ -55,7 +55,7 @@ describe("auth:user", () => {
       id: user.email,
       password: user.password,
     });
-    expect(error?.value).not.toBeDefined();
+    expect(error?.value).toBeUndefined();
     expect(data).not.toBeNull();
     if (!data) return;
     expect(data.id).toEqual(userId);
@@ -65,7 +65,7 @@ describe("auth:user", () => {
 
   it("can request /me from cookie", async () => {
     const { data, error } = await app.me.get();
-    expect(error).toBeNull();
+    expect(error?.value).toBeUndefined();
     expect(data).not.toBeNull();
     if (!data) return;
     expect(data.id).toEqual(userId);
@@ -75,12 +75,10 @@ describe("auth:user", () => {
 
   it("can use cookie to make new posts", async () => {
     const { data, error } = await app.playgrounds.post(
-      {
-        files: { "0001-test.sql": "select 1 as test" },
-      },
+      { files: { "0001-test.sql": "select 1 as test" } },
       { headers: { Cookie } },
     );
-    expect(error).toBeNull();
+    expect(error?.value).toBeUndefined();
     expect(data).not.toBeNull();
     if (!data) return;
     expect(data).toBeObject();
@@ -88,8 +86,10 @@ describe("auth:user", () => {
   });
 
   it("can use cookie to list existing posts", async () => {
-    const { data, error } = await app.playgrounds.get({ headers: { Cookie } });
-    expect(error).toBeNull();
+    const { data, error } = await app
+      .u({ user: user.username })
+      .get({ headers: { Cookie } });
+    expect(error?.value).toBeUndefined();
     expect(data).not.toBeNull();
     if (!data) return;
     expect(data).toBeArray();

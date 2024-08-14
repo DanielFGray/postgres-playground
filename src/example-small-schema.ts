@@ -19,14 +19,18 @@ export default function getWorkspace() {
 drop table if exists nums cascade;
 
 create table nums as
-  select gen_random_uuid(), * from generate_series(1000, 10000);
+  select
+    gen_random_uuid() as id,
+    num
+  from
+    generate_series(1000, 10000) as num;
 
-alter table nums add primary key(gen_random_uuid);
-create index on nums ((generate_series % 2000));
+alter table nums add primary key(id);
+create index on nums ((num % 2000));
 analyze;
 
 explain (analyze, buffers)
-select * from nums where (generate_series % 2000) = 0;
+select * from nums where (num % 2000) = 0;
 
 select version();
 `.trim(),

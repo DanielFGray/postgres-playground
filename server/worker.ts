@@ -11,11 +11,11 @@ export async function createWorker() {
   });
 
   worker = await makeWorkerUtils({ pgPool });
-  await worker.migrate();
+  // await worker.migrate();
 
-  runner = await run({ pgPool, taskDirectory: path.resolve("./worker/tasks") });
+  // runner = await run({ pgPool, taskDirectory: path.resolve("./worker/tasks") });
 
-  await runner.promise;
+  // await runner.promise;
 }
 
 export const getWorker = () => worker;

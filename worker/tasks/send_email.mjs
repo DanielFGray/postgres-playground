@@ -65,7 +65,10 @@ function loadTemplate(template) {
       if (!template.match(/^[a-zA-Z0-9_.-]+$/)) {
         throw new Error(`Disallowed template name '${template}'`);
       }
-      const templateString = await readFile(`${__dirname}/../templates/${template}`, "utf8");
+      const templateString = await readFile(
+        `${__dirname}/../templates/${template}`,
+        "utf8",
+      );
       const templateFn = lodashTemplate(templateString, {
         escape: /\[\[([\s\S]+?)\]\]/g,
       });

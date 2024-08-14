@@ -340,8 +340,6 @@ export const app = new Elysia({
               })
             ).json();
 
-            console.log(JSON.stringify(sponsorInfo, null, 2));
-
             switch (true) {
               case sponsorInfo.user.isViewer:
                 await sql`update app_public.users set role = 'admin' where id = ${linkUser.id}::uuid;`;
@@ -544,7 +542,10 @@ export const app = new Elysia({
           `;
           return id;
         } catch (e) {
-          console.error(e);
+          if (e instanceof Postgres.PostgresError) {
+            console.error(e.detail);
+            console.error(e);
+          }
           return error(500, "failed to create new playground");
         }
       });
@@ -557,74 +558,53 @@ export const app = new Elysia({
   )
 
   .get(
-    "/me/playgrounds",
-    async ({ session }) => {
-      const playgrounds = await withAuthContext(session?.id, async sql => {
-        return await sql<
+    "/u/:user",
+    async ({ session, params }) => {
+      return await withAuthContext(session?.id, async sql => {
+        const playgrounds = await sql<
           {
             id: number;
-            user_id: string;
             fork_id: number | null;
+            name: string | null;
+            description: string | null;
+            stars: string | null;
             created_at: Date;
           }[]
         >`
-        select
-          id,
-          user_id,
-          fork_id,
-          created_at
-        from app_public.playgrounds
-        where user_id = app_public.current_user_id();
-      `;
+          select
+            p.id,
+            p.fork_id,
+            p.name,
+            p.description,
+            stars,
+            p.created_at
+          from
+            app_public.playgrounds p
+            join app_public.users u
+              on p.user_id = u.id,
+            lateral (
+              select count(*) as stars
+              from app_public.playground_stars
+            ) as get_stars
+          where
+            username = ${params.user}
+          order by created_at desc
+          fetch first 50 rows only;
+        `;
+        // postgres.js returns a RowList object that needs to be converted to
+        // an array or elysia fails to serialize
+        return [...playgrounds];
       });
-      // postgres.js returns a weird object that needs to be converted to an array
-      return [...playgrounds];
     },
     {
       params: t.Object({
-        username: t.String(),
+        user: t.String(),
       }),
     },
   )
 
-  .get("/u/:user/playgrounds", async ({ session }) => {
-    return await withAuthContext(session?.id, async sql => {
-      const result = await sql<
-        {
-          id: number;
-          user_id: string;
-          fork_id: number | null;
-          description: string | null;
-          stars: string | null;
-          created_at: Date;
-        }[]
-      >`
-        select
-          p.id,
-          p.fork_id,
-          p.title,
-          p.description,
-          stars,
-          p.created_at
-        from
-          app_public.playgrounds p
-          join app_public.users u
-            on p.user_id = u.id
-          lateral (
-            select count(*) as stars
-            from app_public.playground_stars
-          ) as get_stars
-        order by created_at desc
-        fetch first 50 rows only;
-      `;
-      // postgres.js returns a RowList object that needs to be converted to an
-      // array or elysia fails to serialize properly
-      return [...result];
-    });
-  })
-
   .get(
-    "/playgrounds/:id",
+    "/playground/:id",
     ({ params, session }) => {
       return withAuthContext(session?.id, async sql => {
         const [playground] = await sql<
@@ -641,35 +621,25 @@ export const app = new Elysia({
           }[]
         >`
           select
-            f.id,
-            f.name,
-            f.privacy,
-            f.created_at,
-            f.updated_at,
-            f.description,
-            f.data,
+            p.id,
+            p.name,
+            p.privacy,
+            p.created_at,
+            p.updated_at,
+            p.description,
+            p.data,
             json_build_object(
               'id', u.id,
               'username', u.username
             ) as user,
-            to_json(get_fork) as fork
+            to_json(fork) as fork
           from
-            app_public.playgrounds f
+            app_public.playgrounds p
             join app_public.users u
-              on f.user_id = u.id
+              on p.user_id = u.id
             left join app_public.playgrounds fork
-              on fork.id = f.fork_id,
-          lateral (
-            select
-              fork.id,
-              fork.name,
-              fork.description,
-              users.username
-            from
-              app_public.playgrounds fork
-              join app_public.users
-                on fork.user_id = users.id
-          ) as get_fork
+              on fork.id = p.fork_id,
+          lateral app_public.get_fork(p) f
           where f.id = ${params.id}::int;
         `;
         return { playground };
@@ -677,6 +647,7 @@ export const app = new Elysia({
     },
     { params: t.Object({ id: t.String() }) },
   )
+
   .post(
     "/webhooks/gh_sponsor",
     async ({ headers, body, error }) => {
@@ -695,6 +666,7 @@ export const app = new Elysia({
       }),
     },
   );
+
 const webhooks = new Webhooks({ secret: process.env.SECRET });
 
 export type App = typeof app;

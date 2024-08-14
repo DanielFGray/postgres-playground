@@ -151,7 +151,7 @@ async function createConfig(config) {
     SECRET: config?.SECRET,
   };
 
-  if (! Object.values(PASSWORDS).every(Boolean)) {
+  if (!Object.values(PASSWORDS).every(Boolean)) {
     PASSWORDS = (
       await inquirer.prompt({
         name: "genpwd",

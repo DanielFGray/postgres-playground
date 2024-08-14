@@ -85,7 +85,9 @@ module.exports = async (rawPayload, { addJob, withPgClient, job }) => {
     default: {
       // Ensure we've handled all cases above
       const neverPayload = payload;
-      console.error(`Audit action '${neverPayload.type}' not understood; ignoring.`);
+      console.error(
+        `Audit action '${neverPayload.type}' not understood; ignoring.`,
+      );
       return;
     }
   }
@@ -93,7 +95,9 @@ module.exports = async (rawPayload, { addJob, withPgClient, job }) => {
   const {
     rows: [user],
   } = await withPgClient(client =>
-    client.query("select * from app_public.users where id = $1", [payload.user_id]),
+    client.query("select * from app_public.users where id = $1", [
+      payload.user_id,
+    ]),
   );
 
   if (!user) {

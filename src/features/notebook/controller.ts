@@ -1,7 +1,5 @@
 import * as vscode from "vscode";
-import { zip } from "~lib";
-import * as semicolons from "postgres-semicolons";
-import { Results } from "@electric-sql/pglite";
+import { Results } from "~/types.d";
 import { PGLITE_EXECUTE, PGLITE_INTROSPECT } from "../constants";
 
 export class SQLNotebookExecutionController {
@@ -31,64 +29,44 @@ export class SQLNotebookExecutionController {
 
   async #doExecution(cell: vscode.NotebookCell): Promise<void> {
     const execution = this.#controller.createNotebookCellExecution(cell);
-    execution.executionOrder = ++this.#executionOrder;
     const text = cell.document.getText();
-    const splits = semicolons.parseSplits(text, false);
-    const queries = semicolons.splitStatements(text, splits.positions, true);
+    if (text.trim().length < 1) return;
+    execution.executionOrder = ++this.#executionOrder;
     execution.start(Date.now());
-    const raw = await vscode.commands.executeCommand(PGLITE_EXECUTE, text);
-    const results = zip(queries, raw);
+    const results = await vscode.commands.executeCommand<Results[]>(
+      PGLITE_EXECUTE,
+      text,
+    );
     execution.replaceOutput(
-      results.map(([query, result]) => {
+      results.map(result => {
         if ("error" in result) {
           return new vscode.NotebookCellOutput([
+            // TODO: find out why text/plain throws renderer error
+            // vscode.NotebookCellOutputItem.error(result.error.message),
             vscode.NotebookCellOutputItem.text(
-              `<div style="font-weight:550;background:#f009;padding:0.25em;color:white;">${result.error.message}</div>`,
+              `<div style="font-weight:550;background:#f009;padding:0.25em;color;white;">${result.error.message}</div>`,
               "text/markdown",
             ),
           ]);
         }
-        if (!result.fields.length) {
-          if (
-            ["create", "alter", "drop"].some(stmt =>
-              query.toLowerCase().startsWith(stmt),
-            )
-          ) {
-            vscode.commands.executeCommand(PGLITE_INTROSPECT);
-          }
-          // TODO: find out why text/plain throws renderer error
-          const stmtSplits = query.split(" ");
-          switch (true) {
-            case query.startsWith("create or replace"):
-              return new vscode.NotebookCellOutput([
-                vscode.NotebookCellOutputItem.text(
-                  [stmtSplits[0], stmtSplits[3]].join(" ").toUpperCase(),
-                  "text/markdown",
-                ),
-              ]);
-            case query.startsWith("create"):
-            case query.startsWith("alter"):
-            case query.startsWith("drop"):
-              return new vscode.NotebookCellOutput([
-                vscode.NotebookCellOutputItem.text(
-                  [stmtSplits[0], stmtSplits[1]].join(" ").toUpperCase(),
-                  "text/markdown",
-                ),
-              ]);
-          }
-
+        if (result.fields.length > 0) {
           return new vscode.NotebookCellOutput([
             vscode.NotebookCellOutputItem.text(
-              stmtSplits[0].toUpperCase(),
+              renderRowsAsTable(result),
               "text/markdown",
             ),
           ]);
         }
+        if (
+          ["create", "alter", "drop"].some(stmt =>
+            result.statement.startsWith(stmt),
+          )
+        ) {
+          vscode.commands.executeCommand(PGLITE_INTROSPECT);
+        }
+        // TODO: find out why text/plain throws renderer error
         return new vscode.NotebookCellOutput([
-          vscode.NotebookCellOutputItem.text(
-            renderRowsAsTable({ query, result }),
-            "text/markdown",
-          ),
+          vscode.NotebookCellOutputItem.text(result.statement, "text/markdown"),
         ]);
       }),
     );
@@ -96,20 +74,14 @@ export class SQLNotebookExecutionController {
   }
 }
 
-function renderRowsAsTable({
-  query,
-  result: { rows, fields },
-}: {
-  query: string;
-  result: Results;
-}): string {
+function renderRowsAsTable({ rows, fields, statement }: Results): string {
   return `<table>${
     fields.length < 1
       ? null
       : `<thead><tr>${fields.map(col => `<th>${col.name}</th>`)}</tr></thead>`
   }<tbody>${
     fields.length < 1
-      ? `<tr><td>${query.split(" ").slice(0, 2).join(" ").toUpperCase()}</td></tr>`
+      ? `<tr><td>${statement}</td></tr>`
       : rows.length < 1
         ? `<tr><td colspan=${fields.length}>No results</td></tr>`
         : rows.map(

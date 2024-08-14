@@ -23,9 +23,13 @@ with make_user(id) as (
   select id from app_private
     .really_create_user('dfg', 'test@test.com', true, 'dfg', null)
 )
-insert into app_public.posts (user_id, title, body, tags)
-  values ((select id from make_user), 'Hello world', 'This is a test post', '{test}')
-  returning *;
+insert into app_public.posts
+  (user_id, title, body, tags)
+values
+  ((select id from make_user), 'Hello world', 'my hands are typing words', '{for,quick}'),
+  ((select id from make_user), 'testing', 'This is another test post with more unique words', '{Waltz,bad,nymph}'),
+  ((select id from make_user), 'sphinx of black quartz, judge my vow', 'The five boxing wizards jump quickly', '{test,jigs,vex}')
+returning *;
 \`\`\`
 
 a query
@@ -52,16 +56,191 @@ from
   join app_public.users u on posts.user_id = u.id,
   lateral app_public.posts_score(posts) as score,
   lateral app_public.posts_popularity(posts) as popularity,
-  lateral app_public.posts_current_user_voted(posts) as current_user_voted;
+  lateral app_public.posts_current_user_voted(posts) as current_user_voted
+where
+  search @@ to_tsquery('test')
 \`\`\`
 
 some more text
 `.trim(),
-      "/00010-setup.sql": `
+      "00100-posts.sql": `
+
+create domain app_public.tag as text check (length(value) between 1 and 64);
+
+create table app_public.posts (
+  id int primary key generated always as identity (start 1000),
+  user_id uuid not null default app_public.current_user_id() references app_public.users on delete cascade,
+  title text not null check (length(title) between 1 and 140),
+  body text not null check (length(body) between 1 and 2000),
+  tags app_public.tag[] not null check (array_length(tags, 1) between 1 and 5),
+  search tsvector not null generated always as (
+    setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(array_to_string_immutable(tags, ' '), '')), 'B') ||
+    setweight(to_tsvector('simple', coalesce(body, '')), 'C')
+  ) stored,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index on app_public.posts (user_id);
+create index on app_public.posts using gin (tags);
+create index on app_public.posts (created_at desc);
+
+alter table app_public.posts
+  enable row level security;
+
+create policy select_all on app_public.posts
+  for select using (true);
+create policy insert_own on app_public.posts
+  for insert with check (user_id = app_public.current_user_id());
+create policy update_own on app_public.posts
+  for update using (user_id = app_public.current_user_id());
+create policy delete_own on app_public.posts
+  for delete using (user_id = app_public.current_user_id());
+
+grant
+  select,
+  insert (title, body, tags),
+  update (title, body, tags),
+  delete
+  on app_public.posts to appname_visitor;
+
+create trigger _100_timestamps
+  before insert or update
+  on app_public.posts
+  for each row
+execute procedure app_private.tg__timestamps();
+
+create type app_public.vote_type as enum ('spam', 'like', 'funny', 'love');
+
+create table app_public.posts_votes (
+  post_id int not null references app_public.posts on delete cascade,
+  user_id uuid not null default app_public.current_user_id() references app_public.users,
+  vote app_public.vote_type not null,
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+create index on app_public.posts_votes (user_id);
+create index on app_public.posts_votes (post_id);
+
+alter table app_public.posts_votes
+  enable row level security;
+
+create policy select_all on app_public.posts_votes
+  for select using (true);
+create policy insert_own on app_public.posts_votes
+  for insert with check (user_id = app_public.current_user_id());
+create policy update_own on app_public.posts_votes
+  for update using (user_id = app_public.current_user_id());
+create policy delete_own on app_public.posts_votes
+  for delete using (user_id = app_public.current_user_id());
+
+grant
+  select,
+  insert (vote),
+  update (vote),
+  delete
+  on app_public.posts_votes to appname_visitor;
+
+create table app_public.comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id int not null references app_public.posts on delete cascade,
+  user_id uuid not null default app_public.current_user_id() references app_public.users on delete cascade,
+  parent_id uuid references app_public.comments on delete cascade,
+  body text not null,
+  search tsvector not null generated always as (to_tsvector('simple', body)) stored,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index on app_public.comments (post_id);
+create index on app_public.comments (user_id);
+create index on app_public.comments (parent_id);
+create index on app_public.comments (created_at desc);
+
+alter table app_public.comments
+  enable row level security;
+
+grant
+  select,
+  insert (body, parent_id),
+  update (body),
+  delete
+  on app_public.comments to appname_visitor;
+
+create policy select_all on app_public.comments
+  for select using (true);
+
+create policy insert_own on app_public.comments
+  for insert with check (user_id = app_public.current_user_id());
+
+create policy update_own on app_public.comments
+  for update using (user_id = app_public.current_user_id());
+
+create policy delete_own on app_public.comments
+  for delete using (user_id = app_public.current_user_id());
+
+create trigger _100_timestamps
+  before insert or update
+  on app_public.comments
+  for each row
+execute procedure app_private.tg__timestamps();
+
+create or replace function app_public.posts_current_user_voted(
+  post app_public.posts
+) returns app_public.vote_type as $$
+  select
+    vote
+  from
+    app_public.posts_votes v
+  where
+    v.post_id = (post).id
+    and v.user_id = app_public.current_user_id()
+$$ language sql stable security definer;
+
+create view app_public.top_tags as
+  select
+    unnest(tags) as tag,
+    count(*)
+  from
+    app_public.posts
+  group by
+    tag
+  order by
+    count desc;
+
+grant select on app_public.top_tags to appname_visitor;
+
+create or replace function app_public.posts_score(
+  post app_public.posts
+) returns int as $$
+  select coalesce(sum(
+    case vote
+      when 'spam' then -1
+      when 'like' then 1
+      when 'funny' then 2
+      when 'love' then 4
+    end
+  ), 0)
+  from
+    app_public.posts_votes v
+  where
+    post_id = post.id
+$$ language sql stable;
+
+create or replace function app_public.posts_popularity(
+  post app_public.posts
+) returns float as $$
+  -- https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
+  select (app_public.posts_score(post) - 1) / pow((extract(epoch from (now() - post.created_at)) / 3600) + 2, 1.8)
+$$ language sql stable;
+`.trim(),
+      "/00010-graphile-starter.sql": `
 drop schema if exists app_public cascade;
 drop schema if exists app_hidden cascade;
 drop schema if exists app_private cascade;
-drop owned by appname_visitor cascade;
+-- drop owned by appname_visitor cascade;
 drop role if exists appname_visitor;
 
 create role appname_visitor;
@@ -83,76 +262,33 @@ revoke all on schema public from public;
 alter default privileges revoke all on sequences from public;
 alter default privileges revoke all on functions from public;
 
--- https://www.graphile.org/postgraphile/namespaces/#advice
+/* https://www.graphile.org/postgraphile/namespaces/#advice */
 
 create schema app_public;
 create schema app_hidden;
 create schema app_private;
 
--- The 'visitor' role (used by PostGraphile to represent an end user) may
--- access the public, app_public and app_hidden schemas (but _NOT_ the
--- app_private schema).
-
+-- The 'visitor' role (used to represent an end user) may access the
+-- public, app_public and app_hidden schemas (but _NOT_ the app_private schema).
 grant usage on schema public, app_public, app_hidden to appname_visitor;
 
 -- We want the \`visitor\` role to be able to insert rows (\`serial\` data type
 -- creates sequences, so we need to grant access to that).
-
 alter default privileges in schema public, app_public, app_hidden
   grant usage, select on sequences to appname_visitor;
 
 -- And the \`visitor\` role should be able to call functions too.
-
 alter default privileges in schema public, app_public, app_hidden
   grant execute on functions to appname_visitor;
 
 /*
- * These triggers are commonly used across many tables.
+ * These are functions or triggers that are commonly used across many tables.
  */
 
--- This trigger is used to queue a job to inform a user that a significant
--- security change has been made to their account (e.g. adding a new email
--- address, linking a new social login).
-
-create function app_private.tg__add_audit_job() returns trigger as $$
-declare
-  v_user_id uuid;
-  v_type text = TG_ARGV[0];
-  v_user_id_attribute text = TG_ARGV[1];
-  v_extra_attribute1 text = TG_ARGV[2];
-  v_extra_attribute2 text = TG_ARGV[3];
-  v_extra_attribute3 text = TG_ARGV[4];
-  v_extra1 text;
-  v_extra2 text;
-  v_extra3 text;
-begin
-  if v_user_id_attribute is null then
-    raise exception 'Invalid tg__add_audit_job call';
-  end if;
-
-  execute 'select ($1.' || quote_ident(v_user_id_attribute) || ')::uuid'
-    using (case when TG_OP = 'INSERT' then NEW else OLD end)
-    into v_user_id;
-
-  if v_extra_attribute1 is not null then
-    execute 'select ($1.' || quote_ident(v_extra_attribute1) || ')::text'
-      using (case when TG_OP = 'DELETE' then OLD else NEW end)
-      into v_extra1;
-  end if;
-  if v_extra_attribute2 is not null then
-    execute 'select ($1.' || quote_ident(v_extra_attribute2) || ')::text'
-      using (case when TG_OP = 'DELETE' then OLD else NEW end)
-      into v_extra2;
-  end if;
-  if v_extra_attribute3 is not null then
-    execute 'select ($1.' || quote_ident(v_extra_attribute3) || ')::text'
-      using (case when TG_OP = 'DELETE' then OLD else NEW end)
-      into v_extra3;
-  end if;
-
-  return NEW;
-end;
-$$ language plpgsql volatile security definer set search_path to pg_catalog, public, pg_temp;
+create or replace function array_to_string_immutable(text[], text)
+  returns text
+  language sql immutable parallel safe
+return array_to_string($1, $2);
 
 /*
  * This trigger is used on tables with created_at and updated_at to ensure that
@@ -168,82 +304,6 @@ begin
 end;
 $$ language plpgsql volatile set search_path to pg_catalog, public, pg_temp;
 
-/*
- * This trigger is useful for adding realtime features to our GraphQL schema
- * with minimal effort in the database. It's a very generic trigger function;
- * you're intended to pass three arguments when you call it:
- *
- * 1. The "event" name to include, this is an arbitrary string.
- * 2. The "topic" template that we'll be publishing the event to. A \`$1\` in
- *    this may be added as a placeholder which will be replaced by the
- *    "subject" value.
- * 3. The "subject" column, we'll read the value of this column from the NEW
- *    (for insert/update) or OLD (for delete) record and include it in the
- *    event payload.
- *
- * A PostgreSQL \`NOTIFY\` will be issued to the topic (or "channel") generated
- * from arguments 2 and 3, the body of the notification will be a stringified
- * JSON object containing \`event\`, \`sub\` (the subject specified by argument 3)
- * and \`id\` (the record id).
- *
- * Example:
- *
- *     create trigger _500_gql_update
- *       after update on app_public.users
- *       for each row
- *       execute procedure app_public.tg__graphql_subscription(
- *         'userChanged', -- the "event" string, useful for the client to know what happened
- *         'graphql:user:$1', -- the "topic" the event will be published to, as a template
- *         'id' -- If specified, \`$1\` above will be replaced with NEW.id or OLD.id from the trigger.
- *       );
- */
-
-create function app_public.tg__graphql_subscription() returns trigger as $$
-declare
-  v_process_new bool = (TG_OP = 'INSERT' OR TG_OP = 'UPDATE');
-  v_process_old bool = (TG_OP = 'UPDATE' OR TG_OP = 'DELETE');
-  v_event text = TG_ARGV[0];
-  v_topic_template text = TG_ARGV[1];
-  v_attribute text = TG_ARGV[2];
-  v_record record;
-  v_sub text;
-  v_topic text;
-  v_i int = 0;
-  v_last_topic text;
-begin
-  for v_i in 0..1 loop
-    if (v_i = 0) and v_process_new is true then
-      v_record = new;
-    elsif (v_i = 1) and v_process_old is true then
-      v_record = old;
-    else
-      continue;
-    end if;
-     if v_attribute is not null then
-      execute 'select $1.' || quote_ident(v_attribute)
-        using v_record
-        into v_sub;
-    end if;
-    if v_sub is not null then
-      v_topic = replace(v_topic_template, '$1', v_sub);
-    else
-      v_topic = v_topic_template;
-    end if;
-    if v_topic is distinct from v_last_topic then
-      -- This if statement prevents us from triggering the same notification twice
-      v_last_topic = v_topic;
-      perform pg_notify(v_topic, json_build_object(
-        'event', v_event,
-        'subject', v_sub,
-        'id', v_record.id
-      )::text);
-    end if;
-  end loop;
-  return v_record;
-end;
-$$ language plpgsql volatile;
-`.trim(),
-      "/00020-user-auth.sql": `
 /*
  * This table is used (only) by \`connect-pg-simple\` (see \`installSession.ts\`)
  * to track cookie session information at the webserver (\`express\`) level if
@@ -296,50 +356,15 @@ create table app_private.sessions (
 alter table app_private.sessions
   enable row level security;
 
--- To allow us to efficiently see what sessions are open for a particular user.
+/*
+ * To allow us to efficiently see what sessions are open for a particular user.
+ */
 
 create index on app_private.sessions (user_id);
 
-/*
- * This function is responsible for reading the \`jwt.claims.session_id\`
- * transaction setting (set from the \`pgSettings\` function within
- * \`installPostGraphile.ts\`). Defining this inside a function means we can
- * modify it in future to allow additional ways of defining the session.
- */
-
--- Note we have this in \`app_public\` but it doesn't show up in the GraphQL
--- schema because we've used \`postgraphile.tags.jsonc\` to omit it. We could
--- have put it in app_hidden to get the same effect more easily, but it's often
--- useful to un-omit it to ease debugging auth issues.
-
-create function app_public.current_session_id() returns uuid as $$
-  select nullif(pg_catalog.current_setting('jwt.claims.session_id', true), '')::uuid;
-$$ language sql stable;
-
-
-/*
- * We can figure out who the current user is by looking up their session in the
- * sessions table using the \`current_session_id()\` function.
- *
- * A less secure but more performant version of this function might contain only:
- *
- *   select nullif(pg_catalog.current_setting('jwt.claims.user_id', true), '')::uuid;
- *
- * The increased security of this implementation is because even if someone gets
- * the ability to run SQL within this transaction they cannot impersonate
- * another user without knowing their session_id (which should be closely
- * guarded).
- *
- * The below implementation is more secure than simply indicating the user_id
- * directly: even if an SQL injection vulnerability were to allow a user to set
- * their \`jwt.claims.session_id\` to another value, it would take them many
- * millennia to be able to correctly guess someone else's session id (since it's
- * a cryptographically secure random value that is kept secret). This makes
- * impersonating another user virtually impossible.
- */
-
 create function app_public.current_user_id() returns uuid as $$
-  select user_id from app_private.sessions where uuid = app_public.current_session_id();
+  select user_id from app_private.sessions
+  where uuid = nullif(pg_catalog.current_setting('my.session_id', true), '')::uuid;
 $$ language sql stable security definer set search_path to pg_catalog, public, pg_temp;
 
 /*
@@ -369,26 +394,19 @@ alter table app_public.users
   enable row level security;
 
 -- We couldn't implement this relationship on the sessions table until the users table existed!
-
 alter table app_private.sessions
   add constraint sessions_user_id_fkey
   foreign key ("user_id") references app_public.users on delete cascade;
 
 -- Users are publicly visible, like on GitHub, Twitter, Facebook, Trello, etc.
-
 create policy select_all on app_public.users
   for select using (true);
-
 -- You can only update yourself.
-
 create policy update_self on app_public.users
   for update using (id = app_public.current_user_id());
 grant select on app_public.users to appname_visitor;
-
 -- NOTE: \`insert\` is not granted, because we'll handle that separately
-
 grant update(username, name, avatar_url) on app_public.users to appname_visitor;
-
 -- NOTE: \`delete\` is not granted, because we require confirmation via request_account_deletion/confirm_account_deletion
 
 create trigger _100_timestamps
@@ -396,23 +414,21 @@ create trigger _100_timestamps
   for each row
   execute procedure app_private.tg__timestamps();
 
-/**********/
-
--- Returns the current user; this is a "custom query" function; see:
--- https://www.graphile.org/postgraphile/custom-queries/
--- So this will be queryable via GraphQL as \`{ currentUser { ... } }\`
+/***/
 
 create function app_public.current_user() returns app_public.users as $$
   select users.* from app_public.users where id = app_public.current_user_id();
 $$ language sql stable;
 
-/**********/
+/****/
 
--- The users table contains all the public information, but we need somewhere
--- to store private information. In fact, this data is so private that we don't
--- want the user themselves to be able to see it - things like the bcrypted
--- password hash, timestamps of recent login attempts (to allow us to
--- auto-protect user accounts that are under attack), etc.
+/*
+ * The users table contains all the public information, but we need somewhere
+ * to store private information. In fact, this data is so private that we don't
+ * want the user themselves to be able to see it - things like the bcrypted
+ * password hash, timestamps of recent login attempts (to allow us to
+ * auto-protect user accounts that are under attack), etc.
+ */
 
 create table app_private.user_secrets (
   user_id uuid not null primary key references app_public.users on delete cascade,
@@ -458,22 +474,6 @@ create function app_public.users_has_password(u app_public.users) returns boolea
 $$ language sql stable security definer set search_path to pg_catalog, public, pg_temp;
 
 /*
- * When the user validates their email address we want the UI to be notified
- * immediately, so we'll issue a notification to the \`graphql:user:*\` topic
- * which GraphQL users can subscribe to via the \`currentUserUpdated\`
- * subscription field.
- */
-
-create trigger _500_gql_update
-  after update on app_public.users
-  for each row
-  execute procedure app_public.tg__graphql_subscription(
-    'userChanged', -- the "event" string, useful for the client to know what happened
-    'graphql:user:$1', -- the "topic" the event will be published to, as a template
-    'id' -- If specified, \`$1\` above will be replaced with NEW.id or OLD.id from the trigger.
-  );
-
-/*
  * A user may have more than one email address; this is useful when letting the
  * user change their email so that they can verify the new one before deleting
  * the old one, but is also generally useful as they might want to use
@@ -504,50 +504,21 @@ alter table app_public.user_emails
 create unique index uniq_user_emails_verified_email on app_public.user_emails(email) where (is_verified is true);
 
 -- Only one primary email per user.
-
 create unique index uniq_user_emails_primary_email on app_public.user_emails (user_id) where (is_primary is true);
 
 -- Allow efficient retrieval of all the emails owned by a particular user.
-
 create index idx_user_emails_user on app_public.user_emails (user_id);
 
 -- For the user settings page sorting
-
 create index idx_user_emails_primary on app_public.user_emails (is_primary, user_id);
 
 -- Keep created_at and updated_at up to date.
-
 create trigger _100_timestamps
   before insert or update on app_public.user_emails
   for each row
   execute procedure app_private.tg__timestamps();
 
--- When an email address is added to a user, notify them (in case their account was compromised).
-
-create trigger _500_audit_added
-  after insert on app_public.user_emails
-  for each row
-  execute procedure app_private.tg__add_audit_job(
-    'added_email',
-    'user_id',
-    'id',
-    'email'
-  );
-
--- When an email address is removed from a user, notify them (in case their account was compromised).
-
-create trigger _500_audit_removed
-  after delete on app_public.user_emails
-  for each row
-  execute procedure app_private.tg__add_audit_job(
-    'removed_email',
-    'user_id',
-    'id',
-    'email'
-  );
-
 -- You can't verify an email address that someone else has already verified. (Email is taken.)
-
 create function app_public.tg_user_emails__forbid_if_verified() returns trigger as $$
 begin
   if exists(select 1 from app_public.user_emails where email = NEW.email and is_verified is true) then
@@ -559,26 +530,23 @@ $$ language plpgsql volatile security definer set search_path to pg_catalog, pub
 create trigger _200_forbid_existing_email before insert on app_public.user_emails for each row execute procedure app_public.tg_user_emails__forbid_if_verified();
 
 -- Users may only manage their own emails.
-
 create policy select_own on app_public.user_emails
   for select using (user_id = app_public.current_user_id());
 create policy insert_own on app_public.user_emails
   for insert with check (user_id = app_public.current_user_id());
 
 -- NOTE: we don't allow emails to be updated, instead add a new email and delete the old one.
-
 create policy delete_own on app_public.user_emails
   for delete using (user_id = app_public.current_user_id());
 
 grant select on app_public.user_emails to appname_visitor;
 grant insert (email) on app_public.user_emails to appname_visitor;
-
 -- No update
-
 grant delete on app_public.user_emails to appname_visitor;
 
--- Prevent deleting the user's last email, otherwise they can't access password reset/etc.
-
+/*
+ * Prevent deleting the user's last email, otherwise they can't access password reset/etc.
+ */
 create function app_public.tg_user_emails__prevent_delete_last_email() returns trigger as $$
 begin
   if exists (
@@ -632,7 +600,7 @@ create trigger _500_prevent_delete_last
   for each statement
   execute procedure app_public.tg_user_emails__prevent_delete_last_email();
 
-/**********/
+/***/
 
 /*
  * Just like with users and user_secrets, there are secrets for emails that we
@@ -666,7 +634,7 @@ create trigger _500_insert_secrets
   for each row
   execute procedure app_private.tg_user_email_secrets__insert_with_user_email();
 
-/**********/
+/***/
 
 /*
  * When the user receives the email verification message it will contain the
@@ -679,7 +647,10 @@ create trigger _500_insert_secrets
  * trying to do - in this case, we do that check by ensuring the token matches.
  */
 
-create function app_public.verify_email(user_email_id uuid, token text) returns boolean as $$
+create function app_public.verify_email(
+  user_email_id uuid,
+  token text
+) returns boolean as $$
 begin
   update app_public.user_emails
   set
@@ -764,25 +735,13 @@ create policy delete_own on app_public.user_authentications
 -- email address or password. For now we're not worrying about that since all
 -- the OAuth providers we use verify the email address.
 
--- Notify the user if a social login is removed.
-
-create trigger _500_audit_removed
-  after delete on app_public.user_authentications
-  for each row
-  execute procedure app_private.tg__add_audit_job(
-    'unlinked_account',
-    'user_id',
-    'service',
-    'identifier'
-  );
-
 -- NOTE: we don't need to notify when a linked account is added here because
 -- that's handled in the link_or_register_user function.
 
 grant select on app_public.user_authentications to appname_visitor;
 grant delete on app_public.user_authentications to appname_visitor;
 
-/**********/
+/***/
 
 -- This table contains secret information for each user_authentication; could
 -- be things like access tokens, refresh tokens, profile information. Whatever
@@ -812,7 +771,10 @@ alter table app_private.user_authentication_secrets
  * transaction afterwards.
  */
 
-create function app_private.login(username text, password text) returns app_private.sessions as $$
+create function app_private.login(
+  username text,
+  password text
+) returns app_private.sessions as $$
 declare
   v_user app_public.users;
   v_user_secret app_private.user_secrets;
@@ -920,7 +882,7 @@ create table app_private.unregistered_email_password_resets (
   latest_attempt timestamptz not null
 );
 
-/**********/
+/***/
 
 create function app_public.forgot_password(email text) returns void as $$
 declare
@@ -1018,7 +980,11 @@ begin
 end;
 $$ language plpgsql volatile;
 
-create function app_private.reset_password(user_id uuid, reset_token text, new_password text) returns boolean as $$
+create function app_private.reset_password(
+  user_id uuid,
+  reset_token text,
+  new_password text
+) returns boolean as $$
 declare
   v_user app_public.users;
   v_user_secret app_private.user_secrets;
@@ -1177,7 +1143,10 @@ $$ language plpgsql strict volatile security definer set search_path to pg_catal
  * the user type it twice, but that isn't necessary in the API.
  */
 
-create function app_public.change_password(old_password text, new_password text) returns boolean as $$
+create function app_public.change_password(
+  old_password text,
+  new_password text
+) returns boolean as $$
 declare
   v_user app_public.users;
   v_user_secret app_private.user_secrets;
@@ -1268,7 +1237,7 @@ begin
 end;
 $$ language plpgsql volatile set search_path to pg_catalog, public, pg_temp;
 
-/**********/
+/***/
 
 /*
  * The \`register_user\` function is called by \`link_or_register_user\` when there
@@ -1343,7 +1312,7 @@ begin
 end;
 $$ language plpgsql volatile security definer set search_path to pg_catalog, public, pg_temp;
 
-/**********/
+/***/
 
 /*
  * The \`link_or_register_user\` function is called from
@@ -1485,185 +1454,235 @@ begin
 end;
 $$ language plpgsql strict volatile security definer set search_path to pg_catalog, public, pg_temp;
 
-`.trim(),
+/*
+ * Organizations have a name, and a unique identifier we call the "slug" (it's
+ * like a user's username). Both of these are updatable.
+ */
 
-      "00100-posts.sql": `
-create domain app_public.tag as text check (length(value) between 1 and 64);
-
-create table app_public.posts (
-  id int primary key generated always as identity (start 1000),
-  user_id uuid not null references app_public.users on delete cascade,
-  title text not null check (length(title) between 1 and 140),
-  body text not null check (length(body) between 1 and 2000),
-  tags app_public.tag[] not null check (array_length(tags, 1) between 1 and 5),
-  search tsvector not null generated always as (
-    setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
-    setweight(to_tsvector('simple', coalesce(body, '')), 'B')
-  ) stored,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index on app_public.posts (user_id);
-create index on app_public.posts using gin (tags);
-create index on app_public.posts (created_at desc);
-
-alter table app_public.posts
-  enable row level security;
-
-grant
-  select,
-  insert (title, body, tags),
-  update (title, body, tags),
-  delete
-  on app_public.posts to appname_visitor;
-
-create policy select_all on app_public.posts
-  for select using (true);
-
-create policy insert_own on app_public.posts
-  for insert with check (user_id = app_public.current_user_id());
-
-create policy update_own on app_public.posts
-  for update using (user_id = app_public.current_user_id());
-
-create policy delete_own on app_public.posts
-  for delete using (user_id = app_public.current_user_id());
-
-create trigger _100_timestamps
-  before insert or update
-  on app_public.posts
-  for each row
-execute procedure app_private.tg__timestamps();
-
-create type app_public.vote_type as enum ('spam', 'like', 'funny', 'love');
-
-create table app_public.posts_votes (
-  post_id int not null references app_public.posts on delete cascade,
-  user_id uuid not null references app_public.users,
-  vote app_public.vote_type not null,
-  created_at timestamptz not null default now(),
-  primary key (post_id, user_id)
-);
-
-create index on app_public.posts_votes (user_id);
-create index on app_public.posts_votes (post_id);
-
-alter table app_public.posts_votes
-  enable row level security;
-
-grant
-  select,
-  insert (vote),
-  update (vote),
-  delete
-  on app_public.posts_votes to appname_visitor;
-
-create policy select_all on app_public.posts_votes
-  for select using (true);
-
-create policy insert_own on app_public.posts_votes
-  for insert with check (user_id = app_public.current_user_id());
-
-create policy update_own on app_public.posts_votes
-  for update using (user_id = app_public.current_user_id());
-
-create policy delete_own on app_public.posts_votes
-  for delete using (user_id = app_public.current_user_id());
-
-create table app_public.comments (
+create table app_public.organizations (
   id uuid primary key default gen_random_uuid(),
-  post_id int not null references app_public.posts on delete cascade,
-  user_id uuid not null references app_public.users on delete cascade,
-  parent_id uuid references app_public.comments on delete cascade,
-  body text not null,
-  search tsvector not null generated always as (to_tsvector('simple', body)) stored,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  slug text not null unique,
+  name text not null,
+  created_at timestamptz not null default now()
 );
 
-create index on app_public.comments (post_id);
-create index on app_public.comments (user_id);
-create index on app_public.comments (parent_id);
-create index on app_public.comments (created_at desc);
+alter table app_public.organizations enable row level security;
 
-alter table app_public.comments
-  enable row level security;
+grant select on app_public.organizations to appname_visitor;
+grant update(name, slug) on app_public.organizations to appname_visitor;
+-- Note we can't define the RLS policies for an organization
+-- until we've defined membership of the organization, so RLS policies
+-- are defined later.
 
-grant
-  select,
-  insert (body, parent_id),
-  update (body),
-  delete
-  on app_public.comments to appname_visitor;
+/*
+ * This table details who is a member of an organization. When someone is
+ * invited to an organization they won't have an entry in this table until
+ * their invitation is accepted (for invitations, see
+ * \`organization_invitations\`).
+ */
 
-create policy select_all on app_public.comments
-  for select using (true);
+create table app_public.organization_memberships (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references app_public.organizations on delete cascade,
+  user_id uuid not null references app_public.users on delete cascade,
+  is_owner boolean not null default false,
+  is_billing_contact boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (organization_id, user_id)
+);
 
-create policy insert_own on app_public.comments
-  for insert with check (user_id = app_public.current_user_id());
+alter table app_public.organization_memberships enable row level security;
 
-create policy update_own on app_public.comments
-  for update using (user_id = app_public.current_user_id());
+create index on app_public.organization_memberships (user_id);
 
-create policy delete_own on app_public.comments
-  for delete using (user_id = app_public.current_user_id());
+grant select on app_public.organization_memberships to appname_visitor;
+-- We can't define RLS policies on organization_memberships yet because we need
+-- to know if you're invited; so RLS policies are defined later.
 
-create trigger _100_timestamps
-  before insert or update
-  on app_public.comments
-  for each row
-execute procedure app_private.tg__timestamps();
+/*
+ * When a user is invited to an organization, a record will be added to this
+ * table. Once the invitation is accepted, the record will be deleted. We'll
+ * handle the mechanics of invitation later.
+ */
 
-create or replace function app_public.posts_current_user_voted(
-  post app_public.posts
-) returns app_public.vote_type as $$
-  select
-    vote
-  from
-    app_public.posts_votes v
-  where
-    v.post_id = (post).id
-    and v.user_id = app_public.current_user_id()
-$$ language sql stable security definer;
+create table app_public.organization_invitations (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references app_public.organizations on delete cascade,
+  code text,
+  user_id uuid references app_public.users on delete cascade,
+  email text,
+  check ((user_id is null) <> (email is null)),
+  check ((code is null) = (email is null)),
+  unique (organization_id, user_id),
+  unique (organization_id, email)
+);
 
-create view app_public.top_tags as
-  select
-    unnest(tags) as tag,
-    count(*)
-  from
-    app_public.posts
-  group by
-    tag
-  order by
-    count desc;
+alter table app_public.organization_invitations enable row level security;
 
-grant select on app_public.top_tags to appname_visitor;
+create index on app_public.organization_invitations(user_id);
 
-create or replace function app_public.posts_score(
-  post app_public.posts
-) returns int as $$
-  select coalesce(sum(
-    case vote
-      when 'spam' then -1
-      when 'like' then 1
-      when 'funny' then 2
-      when 'love' then 4
-    end
-  ), 0)
-  from
-    app_public.posts_votes v
-  where
-    post_id = post.id
-$$ language sql stable;
+-- We're not granting any privileges here since we don't need any currently.
+-- grant select on app_public.organization_invitations to appname_visitor;
 
-create or replace function app_public.posts_popularity(
-  post app_public.posts
-) returns float as $$
-  -- https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-  select (app_public.posts_score(post) - 1) / pow((extract(epoch from (now() - post.created_at)) / 3600) + 2, 1.8)
-$$ language sql stable;
-`.trim(),
+/*
+ * When a user creates an organization they automatically become the owner and
+ * billing contact of that organization.
+ */
+
+create function app_public.create_organization(
+  slug text,
+  name text
+) returns app_public.organizations as $$
+declare
+  v_org app_public.organizations;
+begin
+  if app_public.current_user_id() is null then
+    raise exception 'You must log in to create an organization' using errcode = 'LOGIN';
+  end if;
+  insert into app_public.organizations (slug, name) values (slug, name) returning * into v_org;
+  insert into app_public.organization_memberships (organization_id, user_id, is_owner, is_billing_contact)
+    values(v_org.id, app_public.current_user_id(), true, true);
+  return v_org;
+end;
+$$ language plpgsql volatile security definer set search_path = pg_catalog, public, pg_temp;
+
+/*
+ * This function allows you to invite someone to an organization; you either
+ * need to know their username (in which case they must already have an
+ * account) or their email (in which case they will be sent an invitation to
+ * create an account if they don't already have one, this is handled by the
+ * _500_send_email trigger on organization_invitations).
+ */
+
+create function app_public.invite_to_organization(
+  organization_id uuid,
+  username text = null,
+  email text = null
+)
+  returns void as $$
+declare
+  v_code text;
+  v_user app_public.users;
+begin
+  -- Are we allowed to add this person
+  -- Are we logged in
+  if app_public.current_user_id() is null then
+    raise exception 'You must log in to invite a user' using errcode = 'LOGIN';
+  end if;
+
+  select * into v_user from app_public.users where users.username = invite_to_organization.username;
+
+  -- Are we the owner of this organization
+  if not exists(
+    select 1 from app_public.organization_memberships
+      where organization_memberships.organization_id = invite_to_organization.organization_id
+      and organization_memberships.user_id = app_public.current_user_id()
+      and is_owner is true
+  ) then
+    raise exception 'You''re not the owner of this organization' using errcode = 'DNIED';
+  end if;
+
+  if v_user.id is not null and exists(
+    select 1 from app_public.organization_memberships
+      where organization_memberships.organization_id = invite_to_organization.organization_id
+      and organization_memberships.user_id = v_user.id
+  ) then
+    raise exception 'Cannot invite someone who is already a member' using errcode = 'ISMBR';
+  end if;
+
+  if email is not null then
+    v_code = encode(gen_random_bytes(7), 'hex');
+  end if;
+
+  if v_user.id is not null and not v_user.is_verified then
+    raise exception 'The user you attempted to invite has not verified their account' using errcode = 'VRFY2';
+  end if;
+
+  if v_user.id is null and email is null then
+    raise exception 'Could not find person to invite' using errcode = 'NTFND';
+  end if;
+
+  -- Invite the user
+  insert into app_public.organization_invitations(organization_id, user_id, email, code)
+    values (invite_to_organization.organization_id, v_user.id, email, v_code);
+end;
+$$ language plpgsql volatile security definer set search_path to pg_catalog, public, pg_temp;
+
+/*
+ * Allows organization owner to transfer ownership of the organization to
+ * another organization member.
+ */
+
+create function app_public.transfer_organization_ownership(
+  organization_id uuid,
+  user_id uuid
+) returns app_public.organizations as $$
+declare
+ v_org app_public.organizations;
+begin
+  if exists(
+    select 1
+    from app_public.organization_memberships
+    where organization_memberships.user_id = app_public.current_user_id()
+    and organization_memberships.organization_id = transfer_organization_ownership.organization_id
+    and is_owner is true
+  ) then
+    update app_public.organization_memberships
+      set is_owner = true
+      where organization_memberships.organization_id = transfer_organization_ownership.organization_id
+      and organization_memberships.user_id = transfer_organization_ownership.user_id;
+    if found then
+      update app_public.organization_memberships
+        set is_owner = false
+        where organization_memberships.organization_id = transfer_organization_ownership.organization_id
+        and organization_memberships.user_id = app_public.current_user_id();
+
+      select * into v_org from app_public.organizations where id = organization_id;
+      return v_org;
+    end if;
+  end if;
+  return null;
+end;
+$$ language plpgsql volatile security definer set search_path to pg_catalog, public, pg_temp;
+
+/*
+ * Allows organization owner to transfer billing contact for the organization
+ * to another organization member.
+ */
+
+create function app_public.transfer_organization_billing_contact(
+  organization_id uuid,
+  user_id uuid
+) returns app_public.organizations as $$
+declare
+ v_org app_public.organizations;
+begin
+  if exists(
+    select 1
+    from app_public.organization_memberships
+    where organization_memberships.user_id = app_public.current_user_id()
+    and organization_memberships.organization_id = transfer_organization_billing_contact.organization_id
+    and is_owner is true
+  ) then
+    update app_public.organization_memberships
+      set is_billing_contact = true
+      where organization_memberships.organization_id = transfer_organization_billing_contact.organization_id
+      and organization_memberships.user_id = transfer_organization_billing_contact.user_id;
+    if found then
+      update app_public.organization_memberships
+        set is_billing_contact = false
+        where organization_memberships.organization_id = transfer_organization_billing_contact.organization_id
+        and organization_memberships.user_id <> transfer_organization_billing_contact.user_id
+        and is_billing_contact = true;
+
+      select * into v_org from app_public.organizations where id = organization_id;
+      return v_org;
+    end if;
+  end if;
+  return null;
+end;
+$$ language plpgsql volatile security definer set search_path to pg_catalog, public, pg_temp;
+      `.trim(),
     },
   };
 }

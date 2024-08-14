@@ -1,6 +1,10 @@
 import { ExtensionHostKind, registerExtension } from "vscode/extensions";
 import * as vscode from "vscode";
 import { SQLNotebookExecutionController } from "./controller";
+import { WORKSPACE_PREFIX } from "../constants";
+import getWorkspace from "~/example-small-schema";
+import { fileSystemProvider } from "~/fsProvider";
+import { RegisteredMemoryFile } from "@codingame/monaco-vscode-files-service-override";
 
 const { getApi } = registerExtension(
   {
@@ -10,7 +14,7 @@ const { getApi } = registerExtension(
     engines: {
       vscode: "*",
     },
-    activationEvents: ["onLanguage:sql", "onStartupFinished"],
+    // activationEvents: ["onLanguage:sql", "onStartupFinished"],
     contributes: {
       notebooks: [
         {
@@ -31,6 +35,28 @@ void getApi().then(async vscode => {
     new SQLSerializer(),
   );
   new SQLNotebookExecutionController("sql-notebook");
+
+  const { defaultLayout, files } = getWorkspace();
+
+  Object.entries(files).forEach(([path, value]) =>
+    fileSystemProvider.registerFile(
+      new RegisteredMemoryFile(
+        vscode.Uri.file(
+          WORKSPACE_PREFIX.concat(path.startsWith("/") ? path : `/${path}`),
+        ),
+        value,
+      ),
+    ),
+  );
+
+  defaultLayout.editors.forEach(editor => {
+    const uri = vscode.Uri.file(
+      WORKSPACE_PREFIX.concat(
+        editor.uri.startsWith("/") ? editor.uri : `/${editor.uri}`,
+      ),
+    );
+    vscode.window.showNotebookDocument(uri);
+  });
 });
 
 // Cell block delimiter
@@ -45,10 +71,14 @@ export class SQLSerializer implements vscode.NotebookSerializer {
     const blocks = splitSqlBlocks(str);
 
     const cells = blocks.map(query => {
-      if (
-        (query.startsWith("/*") && query.endsWith("*/")) ||
-        query.split("\n").every(line => line.startsWith("-- "))
-      ) {
+      if (/^(---+|\/\*+\*\/)$/.test(query)) {
+        return new vscode.NotebookCellData(
+          vscode.NotebookCellKind.Markup,
+          "***",
+          "markdown",
+        );
+      }
+      if (query.startsWith("/*") && query.endsWith("*/")) {
         return new vscode.NotebookCellData(
           vscode.NotebookCellKind.Markup,
           stripCommentChars(query),
@@ -73,11 +103,9 @@ export class SQLSerializer implements vscode.NotebookSerializer {
       data.cells
         .map(({ value, kind }) => {
           if (kind === vscode.NotebookCellKind.Code) return value;
+          if (value === "***") return "---";
           const lines = value.split("\n");
-          if (lines.length === 1) {
-            if (lines[0].trim().length === 0) return "";
-            return `-- ${lines[0]}`;
-          }
+          if (lines[0].trim().length === 0) return "";
           const withCommentChars = lines
             .map(line => (!line ? " *" : " * " + line))
             .join("\n");

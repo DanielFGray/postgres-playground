@@ -1,3 +1,5 @@
+import type { Results as PgliteResults } from "@electric-sql/pglite";
+
 declare module "*?url" {
   const url: string;
   export default url;
@@ -16,3 +18,7 @@ declare module "*?raw" {
   const content: string;
   export default content;
 }
+
+type Prettify<T> = { [K in keyof T]: T[K] };
+
+declare type Results<T> = Prettify<{query: string, statement: string} & PgliteResults<T>>

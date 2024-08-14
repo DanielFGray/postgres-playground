@@ -43,7 +43,13 @@ module.exports = async (inPayload, { addJob, withPgClient }) => {
     // No longer relevant
     return;
   }
-  const { email, verification_token, username, name, seconds_since_verification_sent } = userEmail;
+  const {
+    email,
+    verification_token,
+    username,
+    name,
+    seconds_since_verification_sent,
+  } = userEmail;
   if (
     seconds_since_verification_sent != null &&
     seconds_since_verification_sent < MIN_INTERVAL / 1000

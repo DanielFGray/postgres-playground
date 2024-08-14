@@ -88,7 +88,7 @@ export class DbIntrospection {
   name: string;
   schemas: Record<string, DbSchema>;
 
-  static query = makeIntrospectionQuery()
+  static query = makeIntrospectionQuery();
 
   constructor({ introspection }: { introspection: string }) {
     this.#introspection = parseIntrospectionResults(introspection, true);
@@ -159,7 +159,7 @@ export class DbIntrospection {
     const types: Record<string, DbType> = groupWith(
       (_, b) => b,
       t => t.name,
-      [...domains, ...enums, ...composites]
+      [...domains, ...enums, ...composites],
     );
     return types;
   }
@@ -188,7 +188,9 @@ export class DbIntrospection {
   #processTables(schemaId: string): Record<string, DbTable> {
     return Object.fromEntries(
       this.#introspection.classes
-        .filter(table => table.relnamespace === schemaId && table.relkind === "r")
+        .filter(
+          table => table.relnamespace === schemaId && table.relkind === "r",
+        )
         .map(table => {
           const name = table.relname;
           const columns = this.#processColumns(table.oid);
@@ -355,7 +357,7 @@ const volatilityMap = {
   i: "immutable",
   s: "stable",
   v: "volatile",
-} as const
+} as const;
 
 function getTypeName(type: PgType) {
   return [type.getNamespace()?.nspname, type.typname].join(".");
@@ -366,4 +368,3 @@ function getDescription(entity: PgEntity) {
     return entity.getDescription();
   }
 }
-

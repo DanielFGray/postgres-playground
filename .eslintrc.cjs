@@ -1,4 +1,4 @@
-require('dotenv').config()
+require("dotenv").config();
 
 /** @type {import("eslint").Linter.Config} */
 module.exports = {
@@ -18,7 +18,6 @@ module.exports = {
   extends: ["eslint:recommended"],
 
   overrides: [
-
     // Typescript
     {
       files: ["**/*.{ts,tsx}"],

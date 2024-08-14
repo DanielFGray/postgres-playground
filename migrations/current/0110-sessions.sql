@@ -9,7 +9,7 @@ create index sessions_user_id_idx on app_private.sessions (user_id);
 alter table app_private.sessions enable row level security;
 
 create function app_public.current_session_id() returns text as $$
-  select nullif(pg_catalog.current_setting('jwt.claims.session_id', true), '');
+  select nullif(pg_catalog.current_setting('my.session_id', true), '');
 $$ language sql stable;
 
 create function app_public.current_user_id() returns uuid as $$

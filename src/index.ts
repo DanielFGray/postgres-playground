@@ -4,8 +4,8 @@ import "@codingame/monaco-vscode-json-language-features-default-extension";
 import "@codingame/monaco-vscode-markdown-basics-default-extension";
 import "@codingame/monaco-vscode-markdown-language-features-default-extension";
 import "@codingame/monaco-vscode-sql-default-extension";
-import "@codingame/monaco-vscode-typescript-basics-default-extension";
-import "@codingame/monaco-vscode-typescript-language-features-default-extension";
+// import "@codingame/monaco-vscode-typescript-basics-default-extension";
+// import "@codingame/monaco-vscode-typescript-language-features-default-extension";
 // import '@codingame/monaco-vscode-html-language-features-default-extension'
 // import '@codingame/monaco-vscode-css-language-features-default-extension'
 // import '@codingame/monaco-vscode-emmet-default-extension'
@@ -34,7 +34,6 @@ import getKeybindingsServiceOverride, {
   initUserKeybindings,
 } from "@codingame/monaco-vscode-keybindings-service-override";
 import {
-  RegisteredFileSystemProvider,
   RegisteredMemoryFile,
   createIndexedDBProviders,
   registerFileSystemOverlay,
@@ -108,7 +107,6 @@ import defaultConfiguration from "./user/configuration.json?raw";
 // import { TerminalBackend } from './features/terminal'
 import { workerConfig } from "./tools/extHostWorker";
 import "vscode/localExtensionHost";
-import getWorkspace from "./example-big-schema";
 import "./style.css";
 import "./features/notebook/markdown";
 import "./features/notebook/sql";
@@ -122,6 +120,11 @@ import "./features/search";
 import "./features/postgres";
 import "./features/testing";
 import "./features/ai";
+import {
+  workspaceFile,
+  WORKSPACE_PREFIX as workspacePrefix,
+} from "./features/constants";
+import { fileSystemProvider } from "./fsProvider";
 
 const url = new URL(document.location.href);
 const params = url.searchParams;
@@ -132,26 +135,7 @@ export const remotePath =
 
 window.history.replaceState({}, document.title, url.href);
 
-export const workspaceFile = monaco.Uri.file("/workspace.code-workspace");
-
 export const userDataProvider = await createIndexedDBProviders();
-
-const fileSystemProvider = new RegisteredFileSystemProvider(false);
-
-const workspacePrefix = "/workspace";
-
-const { defaultLayout, files } = getWorkspace();
-
-Object.entries(files).forEach(([path, value]) =>
-  fileSystemProvider.registerFile(
-    new RegisteredMemoryFile(
-      vscode.Uri.file(
-        workspacePrefix.concat(path.startsWith("/") ? path : `/${path}`),
-      ),
-      value,
-    ),
-  ),
-);
 
 // Use a workspace file to be able to add another folder later (for the "Attach filesystem" button)
 fileSystemProvider.registerFile(
@@ -168,15 +152,7 @@ fileSystemProvider.registerFile(
 // fileSystemProvider.registerFile(
 //   new RegisteredMemoryFile(
 //     monaco.Uri.file("/workspace/.vscode/extensions.json"),
-//     JSON.stringify(
-//       {
-//         recommendations: [
-//           'vscodevim.vim'
-//         ],
-//       },
-//       null,
-//       2,
-//     ),
+//     JSON.stringify({ recommendations: ['vscodevim.vim'] }, null, 2),
 //   ),
 // );
 
@@ -282,18 +258,21 @@ const constructOptions: IWorkbenchConstructionOptions = {
       "Postgres Playground${separator}${dirty}${activeEditorShort}",
   },
   defaultLayout: {
-    editors: defaultLayout.editors.map(({ uri, ...rest }) => ({
-      ...rest,
-      uri: vscode.Uri.file(
-        workspacePrefix.concat(uri.startsWith("/") ? uri : `/${uri}`),
-      ),
-    })),
-    layout: defaultLayout.layout,
+    views: [],
+    editors: [],
+    layout: {},
+    // editors: defaultLayout.editors.map(({ uri, ...rest }) => ({
+    //   ...rest,
+    //   uri: vscode.Uri.file(
+    //     workspacePrefix.concat(uri.startsWith("/") ? uri : `/${uri}`),
+    //   ),
+    // })),
+    // layout: defaultLayout.layout,
     // views: [{ id: 'custom-view' }],
     force: true,
   },
   welcomeBanner: {
-    message: "Welcome to Postgres Playground",
+    message: "Welcome to Postgres Playground! This is a very early release, expect some bugs and missing features.",
   },
   productConfiguration: {
     nameShort: "pg-playground",
@@ -344,7 +323,7 @@ const commonServices: IEditorOverrideServices = {
   ...getAccessibilityServiceOverride(),
   ...getLanguageDetectionWorkerServiceOverride(),
   ...getStorageServiceOverride({
-    fallbackOverride: { "workbench.activity.showAccounts": true },
+    fallbackOverride: { "workbench.activity.showAccounts": false },
   }),
   ...getRemoteAgentServiceOverride({ scanRemoteExtensions: true }),
   ...getLifecycleServiceOverride(),

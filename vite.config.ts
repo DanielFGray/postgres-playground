@@ -2,21 +2,18 @@ import { defineConfig } from "vite";
 import importMetaUrlPlugin from "@codingame/esbuild-import-meta-url-plugin";
 import * as fs from "fs";
 import path from "path";
-import pkg from "./package.json" assert { type: "json" };
+import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   build: {
     target: "esnext",
     rollupOptions: {
-      external: ['~lib']
+      external: ["~lib"],
     },
   },
   server: {
     port: 3000,
     host: "0.0.0.0",
-    fs: {
-      allow: ["../"], // allow to load codicon.ttf from monaco-editor in the parent folder
-    },
     proxy: {
       "/auth": {
         target: "http://localhost:8080",
@@ -30,6 +27,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    tsconfigPaths(),
     {
       // For the *-language-features extensions which use SharedArrayBuffer
       name: "configure-response-headers",
