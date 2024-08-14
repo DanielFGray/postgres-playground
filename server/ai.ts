@@ -8,27 +8,31 @@ if (!process.env.GEMINI_KEY) {
 }
 
 const providers = {
-  google: new GoogleGenerativeAI(process.env.GEMINI_KEY);
-}
+  google: new GoogleGenerativeAI(process.env.GEMINI_KEY),
+};
 
 // TODO: feed the model with postgres training data
 
 export function getAI(app: Elysia) {
-  return app.get("/ai/:provider", ({ body }) => {
-    return new Stream(async stream => {
-      const model = providers.google.getGenerativeModel({
-        model: "gemini-1.5-flash",
-      });
+  return app.get(
+    "/ai/:provider",
+    ({ body }) => {
+      return new Stream(async stream => {
+        const model = providers.google.getGenerativeModel({
+          model: "gemini-1.5-flash",
+        });
 
-      if (typeof body.message !== "string") {
-        stream.send("Invalid message type");
-      }
-      const result = model.generateContentStream(body.message);
-      stream.send(result);
-    });
-  }, {
-    body: t.Object({
-      message: t.String(),
-    }),
-  });
+        if (typeof body.message !== "string") {
+          stream.send("Invalid message type");
+        }
+        const result = model.generateContentStream(body.message);
+        stream.send(result);
+      });
+    },
+    {
+      body: t.Object({
+        message: t.String(),
+      }),
+    },
+  );
 }

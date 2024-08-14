@@ -272,7 +272,8 @@ const constructOptions: IWorkbenchConstructionOptions = {
     force: true,
   },
   welcomeBanner: {
-    message: "Welcome to Postgres Playground! This is a very early release, expect some bugs and missing features.",
+    message:
+      "Welcome to Postgres Playground! This is a very early release, expect some bugs and missing features.",
   },
   productConfiguration: {
     nameShort: "pg-playground",

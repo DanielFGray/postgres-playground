@@ -297,9 +297,9 @@ void getApi().then(async vscode => {
   //   new PlaygroundSidebarView(),
   // );
 
-  vscode.commands.registerCommand('github-login', async () => {
-    window.location.href = '/auth/github';
-  })
+  vscode.commands.registerCommand("github-login", async () => {
+    window.location.href = "/auth/github";
+  });
 
   const dbExplorer = new DatabaseExplorerProvider();
   const [refreshIntrospection] = throttle(dbExplorer.refresh, 50);

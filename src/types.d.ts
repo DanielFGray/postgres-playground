@@ -21,4 +21,6 @@ declare module "*?raw" {
 
 type Prettify<T> = { [K in keyof T]: T[K] };
 
-declare type Results<T> = Prettify<{query: string, statement: string} & PgliteResults<T>>
+declare type Results<T> = Prettify<
+  { query: string; statement: string } & PgliteResults<T>
+>;
