@@ -167,7 +167,6 @@ const { getApi } = registerExtension(
 //   // }]
 // });
 
-
 let db = makePglite();
 
 function makePglite() {
@@ -198,7 +197,7 @@ function makePglite() {
     },
   });
 }
-const version = db.query("select version()");
+const version = db.query<{ version: string }>("select version()");
 
 void getApi().then(async vscode => {
   const pgliteOutputChannel = vscode.window.createOutputChannel("PGlite");
@@ -268,10 +267,9 @@ void getApi().then(async vscode => {
     pgliteOutputChannel.replace("restarting postgres\n");
     if (db) await db.close();
     db = makePglite();
-    await db.query("select 1");
     const {
       rows: [{ version }],
-    } = await db.query("select version()");
+    } = await db.query<{ version: string }>("select version()");
     pgliteOutputChannel.appendLine(version);
   });
 
