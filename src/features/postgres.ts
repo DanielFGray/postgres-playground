@@ -104,18 +104,18 @@ const { getApi } = registerExtension(
           },
         ],
       },
-      // views: {
-      //   explorer: [
-      //     { id: DATABASE_EXPLORER, name: "Database" },
-      //     { id: "playground-info", name: "Playground", type: "webview" },
-      //   ],
-      // },
-      // viewsWelcome: [
-      //   {
-      //     view: DATABASE_EXPLORER,
-      //     contents: "Run some commands to see your schema",
-      //   },
-      // ],
+      views: {
+        explorer: [
+          { id: DATABASE_EXPLORER, name: "Database", visibility: "visible" },
+          // { id: "playground-info", name: "Playground", type: "webview" },
+        ],
+      },
+      viewsWelcome: [
+        {
+          view: DATABASE_EXPLORER,
+          contents: "Run some commands to see your schema",
+        },
+      ],
     },
   },
   ExtensionHostKind.LocalProcess,
@@ -237,17 +237,19 @@ void getApi().then(async vscode => {
         const queries = semicolons.splitStatements(sql, splits.positions, true);
         const result = zip(queries, raw).map(([q, r]) => {
           const stmtSplits = q.slice(0, 30).split(/\s+/);
-          return {
-            ...r,
-            query: q,
-            statement: q.startsWith("create or replace")
-              ? [stmtSplits[0], stmtSplits[3]].join(" ").toUpperCase()
-              : q.startsWith("create") ||
-                  q.startsWith("alter") ||
-                  q.startsWith("drop")
-                ? [stmtSplits[0], stmtSplits[1]].join(" ").toUpperCase()
-                : stmtSplits[0].toUpperCase(),
-          };
+          const statement = q.startsWith("create or replace")
+            ? [stmtSplits[0], stmtSplits[3]].join(" ").toUpperCase()
+            : q.startsWith("create") ||
+                q.startsWith("alter") ||
+                q.startsWith("drop")
+              ? [stmtSplits[0], stmtSplits[1]].join(" ").toUpperCase()
+              : stmtSplits[0].toUpperCase();
+          if (
+            ["CREATE", "ALTER", "DROP"].some(stmt => statement.startsWith(stmt))
+          ) {
+            vscode.commands.executeCommand(PGLITE_INTROSPECT);
+          }
+          return { ...r, query: q, statement };
         });
         result.forEach(stmt => {
           pgliteOutputChannel.appendLine(stmt.statement);
@@ -305,9 +307,9 @@ void getApi().then(async vscode => {
   const dbExplorer = new DatabaseExplorerProvider();
   const [refreshIntrospection] = throttle(dbExplorer.refresh, 50);
   vscode.commands.registerCommand(PGLITE_INTROSPECT, refreshIntrospection);
-  // vscode.window.createTreeView(DATABASE_EXPLORER, {
-  //   treeDataProvider: dbExplorer,
-  // });
+  vscode.window.createTreeView(DATABASE_EXPLORER, {
+    treeDataProvider: dbExplorer,
+  });
 });
 
 // class PlaygroundSidebarView implements vscode.WebviewViewProvider {

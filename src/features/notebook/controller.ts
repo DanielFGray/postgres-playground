@@ -57,13 +57,6 @@ export class SQLNotebookExecutionController {
             ),
           ]);
         }
-        if (
-          ["create", "alter", "drop"].some(stmt =>
-            result.statement.startsWith(stmt),
-          )
-        ) {
-          vscode.commands.executeCommand(PGLITE_INTROSPECT);
-        }
         // TODO: find out why text/plain throws renderer error
         return new vscode.NotebookCellOutput([
           vscode.NotebookCellOutputItem.text(result.statement, "text/markdown"),
