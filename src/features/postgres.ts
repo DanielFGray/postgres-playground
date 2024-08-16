@@ -209,9 +209,9 @@ void getApi().then(async vscode => {
   const queryOpts = {};
 
   vscode.commands.registerCommand(DATABASE_MIGRATE, async function migrate() {
-    const folders = vscode.workspace.workspaceFolders;
-    if (!folders) return;
-    const pattern = new vscode.RelativePattern(folders[0], "**/*.sql");
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (!folder) return;
+    const pattern = new vscode.RelativePattern(folder, "*.sql");
     // TODO: make cancellable
     const files = await vscode.workspace.findFiles(pattern);
     if (!files.length)
