@@ -37,16 +37,18 @@ export class DatabaseExplorerProvider
     console.log(element);
     if (!this.introspection) return [];
     if (!element)
-      return this.introspection.namespaces.map(
-        n =>
-          new Entity(
-            n.oid,
-            n.nspname,
-            "schema",
-            "symbol-namespace",
-            vscode.TreeItemCollapsibleState.Expanded,
-          ),
-      );
+      return this.introspection.namespaces
+        .filter(n => n.nspname !== "pg_catalog" && n.nspname !== "pg_toast")
+        .map(
+          n =>
+            new Entity(
+              n.oid,
+              n.nspname,
+              "schema",
+              "symbol-namespace",
+              vscode.TreeItemCollapsibleState.Expanded,
+            ),
+        );
     switch (element.kind) {
       case "schema":
         return this.introspection.classes
