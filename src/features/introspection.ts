@@ -41,63 +41,74 @@ export class DatabaseExplorerProvider
         .filter(n => n.nspname !== "pg_catalog" && n.nspname !== "pg_toast")
         .map(
           n =>
-            new Entity(
-              n.oid,
-              n.nspname,
-              "schema",
-              "symbol-namespace",
-              vscode.TreeItemCollapsibleState.Expanded,
-            ),
+            new Entity({
+              id: n.oid,
+              label: n.nspname,
+              kind: "schema",
+              icon: "symbol-namespace",
+              state: vscode.TreeItemCollapsibleState.Expanded,
+            }),
         );
     switch (element.kind) {
-      case "schema":
-        return this.introspection.classes
+      case "schema": {
+        const tables = this.introspection.classes
           .filter(
-            table =>
-              table.relnamespace === element.oid && table.relkind === "r",
+            table => table.relnamespace === element.id && table.relkind === "r",
           )
           .map(
             t =>
-              new Entity(
-                t.oid,
-                t.relname,
-                "table",
-                "symbol-structure",
-                vscode.TreeItemCollapsibleState.Collapsed,
-              ),
+              new Entity({
+                id: t.oid,
+                label: t.relname,
+                kind: "table",
+                icon: "symbol-structure",
+                state: vscode.TreeItemCollapsibleState.Collapsed,
+              }),
           );
+        return [...tables];
+      }
       case "table":
         return this.introspection.attributes
-          .filter(attr => attr.attrelid === element.oid)
+          .filter(attr => attr.attrelid === element.id)
           .map(
             c =>
-              new Entity(
-                c.oid,
-                c.attname,
-                "column",
-                "symbol-property",
-                vscode.TreeItemCollapsibleState.Collapsed,
-              ),
+              new Entity({
+                id: c.oid,
+                label: c.attname,
+                description: c.getType()?.typname,
+                kind: "column",
+                icon: "symbol-property",
+                state: vscode.TreeItemCollapsibleState.Collapsed,
+              }),
           );
+      default:
+        return [];
     }
   }
 }
 
-function getTypeName(type: PgType) {
-  return [type.getNamespace()?.nspname, type.typname].join(".");
-}
-
 class Entity extends vscode.TreeItem {
   public readonly id: string;
+  public readonly label: string;
+  public readonly kind: string;
+  public readonly description: string | undefined;
+  public readonly iconPath: string;
+  public readonly collapsibleState: vscode.TreeItemCollapsibleState;
 
-  constructor(
-    public readonly oid: string,
-    public readonly label: string,
-    public readonly kind: string,
-    public readonly iconPath: string,
-    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-  ) {
-    super(label, collapsibleState);
-    this.id = `${this.label}-${this.kind}`;
+  constructor(props: {
+    id: string;
+    label: string;
+    kind: string;
+    description?: string;
+    icon: string;
+    state: vscode.TreeItemCollapsibleState;
+  }) {
+    super(props.label, props.state);
+    this.id = props.id;
+    this.label = props.label;
+    this.kind = props.kind;
+    this.description = props.description;
+    this.iconPath = props.icon;
+    this.collapsibleState = props.state;
   }
 }
