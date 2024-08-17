@@ -8,6 +8,10 @@ import {
 import { Results } from "~/types.d";
 import { PGLITE_EXECUTE } from "./constants";
 
+const volatileMap = {
+  i: "immutable",
+  s: "stable",
+};
 export class DatabaseExplorerProvider
   implements vscode.TreeDataProvider<Entity>
 {
@@ -33,10 +37,10 @@ export class DatabaseExplorerProvider
     return element;
   }
 
-  getChildren(element?: Entity): Entity[] {
-    console.log(element);
+  getChildren(parent?: Entity): Entity[] {
+    console.log(parent);
     if (!this.introspection) return [];
-    if (!element)
+    if (!parent) {
       return this.introspection.namespaces
         .filter(n => n.nspname !== "pg_catalog" && n.nspname !== "pg_toast")
         .map(
@@ -44,17 +48,78 @@ export class DatabaseExplorerProvider
             new Entity({
               id: n.oid,
               label: n.nspname,
+              description: "schema",
               kind: "schema",
               icon: "symbol-namespace",
               state: vscode.TreeItemCollapsibleState.Expanded,
             }),
         );
-    switch (element.kind) {
+    }
+    switch (parent.kind) {
       case "schema": {
-        const tables = this.introspection.classes
-          .filter(
-            table => table.relnamespace === element.id && table.relkind === "r",
+        const items = [];
+        if (
+          this.introspection.classes.find(
+            cls => cls.relnamespace === parent.id && cls.relkind === "r",
           )
+        ) {
+          items.push(
+            new Entity({
+              id: `${parent.id}-tables`,
+              kind: "tables",
+              label: "tables",
+              icon: "symbol-namespace",
+              state: vscode.TreeItemCollapsibleState.Collapsed,
+            }),
+          );
+        }
+        if (
+          this.introspection.classes.find(
+            cls => cls.relnamespace === parent.id && cls.relkind === "v",
+          )
+        ) {
+          items.push(
+            new Entity({
+              id: `${parent.id}-views`,
+              kind: "views",
+              label: "views",
+              icon: "symbol-namespace",
+              state: vscode.TreeItemCollapsibleState.Collapsed,
+            }),
+          );
+        }
+        if (
+          this.introspection.procs.find(proc => proc.pronamespace === parent.id)
+        ) {
+          items.push(
+            new Entity({
+              id: `${parent.id}-functions`,
+              kind: "functions",
+              label: "functions",
+              icon: "symbol-namespace",
+              state: vscode.TreeItemCollapsibleState.Collapsed,
+            }),
+          );
+        }
+        if (
+          this.introspection.types.find(type => type.typnamespace === parent.id)
+        ) {
+          items.push(
+            new Entity({
+              id: `${parent.id}-types`,
+              kind: "types",
+              label: "types",
+              icon: "symbol-namespace",
+              state: vscode.TreeItemCollapsibleState.Collapsed,
+            }),
+          );
+        }
+        return items;
+      }
+      case "tables": {
+        const id = parent.id.split("-")[0];
+        return this.introspection.classes
+          .filter(table => table.relnamespace === id && table.relkind === "r")
           .map(
             t =>
               new Entity({
@@ -65,22 +130,246 @@ export class DatabaseExplorerProvider
                 state: vscode.TreeItemCollapsibleState.Collapsed,
               }),
           );
-        return [...tables];
       }
-      case "table":
-        return this.introspection.attributes
-          .filter(attr => attr.attrelid === element.id)
+      case "views": {
+        const id = parent.id.split("-")[0];
+        return this.introspection.classes
+          .filter(table => table.relnamespace === id && table.relkind === "v")
           .map(
-            c =>
+            t =>
               new Entity({
-                id: c.oid,
-                label: c.attname,
-                description: c.getType()?.typname,
-                kind: "column",
-                icon: "symbol-property",
+                id: t.oid,
+                label: t.relname,
+                kind: "view",
+                icon: "symbol-structure",
                 state: vscode.TreeItemCollapsibleState.Collapsed,
               }),
           );
+      }
+      case "types": {
+        const id = parent.id.split("-")[0];
+        const domains = this.introspection.types
+          .filter(t => t.typtype === "d" && t.typnamespace === id)
+          .map(
+            t =>
+              new Entity({
+                id: t.oid,
+                label: t.typname,
+                kind: "label",
+                // TODO: find how to get domain type name [text, int, etc]
+                description: "domain",
+                icon: "symbol-attribute",
+                state: vscode.TreeItemCollapsibleState.None,
+              }),
+          );
+
+        const enums = this.introspection.types
+          .filter(t => t.typtype === "e" && t.typnamespace === id)
+          .map(t => {
+            const values = t.getEnumValues();
+            if (!values)
+              throw new Error(`could not find enum values for ${t.typname}`);
+            return new Entity({
+              id: t.oid,
+              label: t.typname,
+              kind: "enum",
+              description: "enum",
+              icon: "symbol-attribute",
+              state: vscode.TreeItemCollapsibleState.Collapsed,
+              // values: values.map(x => x.enumlabel),
+            });
+          });
+
+        const composites = this.introspection.classes
+          .filter(cls => cls.relkind === "c" && cls.relnamespace === id)
+          .map(
+            t =>
+              new Entity({
+                id: t.oid,
+                label: t.relname,
+                kind: "composite",
+                description: "composite",
+                icon: "symbol-structure",
+                state: vscode.TreeItemCollapsibleState.Collapsed,
+                // values: t.getAttributes().map(a => {
+                //   const type = a.getType();
+                //   if (!type)
+                //     throw new Error(
+                //       `could not find type for composite attribute ${t.relname}`,
+                //     );
+                //   return { name: a.attname, type: type.typname };
+                // }),
+              }),
+          );
+        return [...domains, ...enums, ...composites];
+      }
+      case "functions": {
+        const id = parent.id.split("-")[0];
+        return this.introspection.procs
+          .filter(proc => proc.pronamespace === id)
+          .map(proc => {
+            const type = this.introspection.getType({ id: proc?.prorettype });
+            const returnType = proc.proretset
+              ? "setof " + type?.typname
+              : type?.typname;
+            return new Entity({
+              id: proc.oid,
+              label: `${proc.proname}(${proc.pronargs && proc.pronargs > 0 ? proc.pronargs : ""}):`,
+              kind: "function",
+              description: returnType,
+              icon: "symbol-function",
+              state: vscode.TreeItemCollapsibleState.Collapsed,
+            });
+          });
+      }
+
+      case "function": {
+        const func = this.introspection.getProc({ id: parent.id });
+        if (!func) return [];
+        const attrs = [
+          new Entity({
+            id: `${parent.id}-vol`,
+            label:
+              func.provolatile && func.provolatile in volatileMap
+                ? volatileMap[func.provolatile as "i" | "s"]
+                : "volatile",
+            kind: "label",
+            icon: "symbol-property",
+            state: vscode.TreeItemCollapsibleState.None,
+          }),
+          ...(func.prosecdef
+            ? [
+                new Entity({
+                  id: `${parent.id}-secdef`,
+                  label: "security definer",
+                  kind: "label",
+                  icon: "symbol-property",
+                  state: vscode.TreeItemCollapsibleState.None,
+                }),
+              ]
+            : []),
+          ...(func.pronargs && func.pronargs > 0
+            ? [
+                new Entity({
+                  id: `${parent.id}-args`,
+                  label: "arguments",
+                  kind: "fnarguments",
+                  icon: "symbol-property",
+                  state: vscode.TreeItemCollapsibleState.Expanded,
+                }),
+              ]
+            : []),
+        ];
+        return attrs;
+      }
+
+      case "fnreturns": {
+        const id = parent.id.split("-")[0];
+        const proc = this.introspection.getProc({ id });
+        if (!proc) return [];
+        const type = this.introspection.getType({ id: proc?.prorettype });
+        if (!type) return [];
+        return [
+          new Entity({
+            id: `${parent.id}-return-val`,
+            label: type.typname,
+            kind: "label",
+            icon: "symbol-property",
+            state: vscode.TreeItemCollapsibleState.None,
+          }),
+        ];
+      }
+
+      case "fnarguments": {
+        const id = parent.id.split("-")[0];
+        const proc = this.introspection.getProc({ id });
+        const types = proc?.proargtypes ?? [];
+        return (
+          proc?.proargnames ??
+          Array.from({ length: proc?.pronargs ?? 0 }, (_, i) => `arg${i + 1}`)
+        ).map(
+          (arg, i) =>
+            new Entity({
+              id: `${parent.id}-${arg}`,
+              label: arg,
+              description: this.introspection!.getType({ id: types[i] })
+                ?.typname,
+              kind: "label",
+              icon: "symbol-property",
+              state: vscode.TreeItemCollapsibleState.None,
+            }),
+        );
+      }
+
+      case "enum": {
+        const type = this.introspection.getType({ id: parent.id });
+        return (
+          type?.getEnumValues()?.map(
+            x =>
+              new Entity({
+                id: x.oid,
+                label: x.enumlabel,
+                kind: "enum_value",
+                icon: "symbol-property",
+                state: vscode.TreeItemCollapsibleState.None,
+              }),
+          ) ?? []
+        );
+      }
+
+      case "composite":
+      case "view":
+      case "table": {
+        const indexes = this.introspection.indexes.filter(
+          idx => idx.indrelid === parent.id,
+        );
+
+        const primaryKey = indexes
+          .find(idx => idx.indisprimary)
+          ?.getKeys()
+          .map(k => k.attname);
+
+        const columns = this.introspection.attributes.filter(
+          attr => attr.attrelid === parent.id,
+        );
+        return [
+          ...columns.map(c => {
+            console.log(primaryKey, c.attname);
+            return new Entity({
+              id: c.oid,
+              label: c.attname,
+              description: [
+                c.getType()?.typname,
+                ...(primaryKey?.includes(c.attname)
+                  ? ["primary key"]
+                  : c.attnotnull
+                    ? ["not null"]
+                    : []),
+              ].join(" "),
+              kind: "column",
+              icon: "symbol-property",
+              state: vscode.TreeItemCollapsibleState.None,
+            });
+          }),
+          ...indexes
+            .filter(idx => !idx.indisprimary)
+            .map(idx => {
+              const cls = idx.getIndexClass()!;
+              const am = cls.getAccessMethod()!;
+              return new Entity({
+                id: idx.oid,
+                label: cls.relname,
+                description: [
+                  ...(idx.indisunique ? ["unique"] : []),
+                  am.amname,
+                ].join(" "),
+                kind: "index",
+                icon: "symbol-property",
+                state: vscode.TreeItemCollapsibleState.None,
+              });
+            }),
+        ];
+      }
       default:
         return [];
     }
