@@ -16,56 +16,39 @@ export default function getWorkspace() {
     },
     files: {
       "/example.md": `
-some seed data
-
 \`\`\`sql
+delete from app_public.users;
 with make_user(id) as (
   select id from app_private
     .really_create_user('dfg', 'test@test.com', true, 'dfg', null)
+),
+make_session as (
+  insert into app_private.sessions (user_id) values ((select id from make_user)) returning *
 )
-insert into app_public.posts
-  (user_id, title, body, tags)
-values
-  ((select id from make_user), 'Hello world', 'my hands are typing words', '{for,quick}'),
-  ((select id from make_user), 'testing', 'This is another test post with more unique words', '{Waltz,bad,nymph}'),
-  ((select id from make_user), 'sphinx of black quartz, judge my vow', 'The five boxing wizards jump quickly', '{test,jigs,vex}')
-returning *;
+select set_config('my.session_id', (select uuid from make_session)::text, true);
+
+select * from app_public.create_post('Hello world', 'my hands are typing words', '{for,quick}', 'private');
+select * from app_public.create_post('testing', 'This is another test post with more unique words', '{Waltz,bad,nymph}', 'private');
+select * from app_public.create_post('sphinx of black quartz, judge my vow', 'The five boxing wizards jump quickly', '{test,jigs,vex}', 'private');
+
+with make_user(id) as (
+  select id from app_private
+    .really_create_user('alice', 'alice@test.com', true, 'alice', null)
+),
+make_session as (
+  insert into app_private.sessions (user_id) values ((select id from make_user)) returning *
+)
+select set_config('my.session_id', (select uuid from make_session)::text, true);
+
+select * from app_public.create_post('this is a test', 'my hands are typing words', '{secret}', 'private');
+select * from app_public.create_post('testing', 'This is another test post with more unique words', '{Waltz,bad,nymph}', 'private');
 \`\`\`
 
-a query
-
-\`\`\`sql
-select
-  posts.id,
-  posts.tags,
-  posts.title,
-  score,
-  popularity,
-  current_user_voted,
-  json_build_object(
-    'id', u.id,
-    'name', u.name,
-    'username', u.username,
-    'avatar_url', u.avatar_url,
-    'role', role
-  ) as user,
-  posts.created_at,
-  posts.updated_at
-from
-  app_public.posts
-  join app_public.users u on posts.user_id = u.id,
-  lateral app_public.posts_score(posts) as score,
-  lateral app_public.posts_popularity(posts) as popularity,
-  lateral app_public.posts_current_user_voted(posts) as current_user_voted
-where
-  search @@ to_tsquery('test')
-\`\`\`
-
-some more text
 `.trim(),
-      "00100-posts.sql": `
-
+      "/00100-posts.sql": `
 create domain app_public.tag as text check (length(value) between 1 and 64);
+
+create type app_public.privacy as enum ('private', 'secret', 'public');
 
 create table app_public.posts (
   id int primary key generated always as identity (start 1000),
@@ -73,6 +56,7 @@ create table app_public.posts (
   title text not null check (length(title) between 1 and 140),
   body text not null check (length(body) between 1 and 2000),
   tags app_public.tag[] not null check (array_length(tags, 1) between 1 and 5),
+  privacy app_public.privacy not null default 'public',
   search tsvector not null generated always as (
     setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
     setweight(to_tsvector('simple', coalesce(array_to_string_immutable(tags, ' '), '')), 'B') ||
@@ -90,7 +74,7 @@ alter table app_public.posts
   enable row level security;
 
 create policy select_all on app_public.posts
-  for select using (true);
+  for select using (privacy = 'public' or user_id = app_public.current_user_id());
 create policy insert_own on app_public.posts
   for insert with check (user_id = app_public.current_user_id());
 create policy update_own on app_public.posts
@@ -100,8 +84,8 @@ create policy delete_own on app_public.posts
 
 grant
   select,
-  insert (title, body, tags),
-  update (title, body, tags),
+  insert (title, body, tags, privacy),
+  update (title, body, tags, privacy),
   delete
   on app_public.posts to appname_visitor;
 
@@ -186,7 +170,9 @@ create trigger _100_timestamps
   on app_public.comments
   for each row
 execute procedure app_private.tg__timestamps();
+`.trim(),
 
+      "/99999-fixtures.sql": `
 create or replace function app_public.posts_current_user_voted(
   post app_public.posts
 ) returns app_public.vote_type as $$
@@ -199,7 +185,7 @@ create or replace function app_public.posts_current_user_voted(
     and v.user_id = app_public.current_user_id()
 $$ language sql stable security definer;
 
-create view app_public.top_tags as
+create or replace view app_public.top_tags as
   select
     unnest(tags) as tag,
     count(*)
@@ -210,32 +196,240 @@ create view app_public.top_tags as
   order by
     count desc;
 
-grant select on app_public.top_tags to appname_visitor;
-
-create or replace function app_public.posts_score(
-  post app_public.posts
+create or replace function app_public.score_post(
+  id int
 ) returns int as $$
   select coalesce(sum(
     case vote
-      when 'spam' then -1
-      when 'like' then 1
-      when 'funny' then 2
       when 'love' then 4
+      when 'funny' then 2
+      when 'like' then 1
+      when 'spam' then -1
     end
   ), 0)
   from
     app_public.posts_votes v
   where
-    post_id = post.id
+    post_id = score_post.id
 $$ language sql stable;
 
 create or replace function app_public.posts_popularity(
-  post app_public.posts
+  score int,
+  created_at timestamptz
 ) returns float as $$
   -- https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-  select (app_public.posts_score(post) - 1) / pow((extract(epoch from (now() - post.created_at)) / 3600) + 2, 1.8)
+  select (score - 1) / pow((extract(epoch from (now() - created_at)) / 3600) + 2, 1.8)
 $$ language sql stable;
+
+create or replace function app_public.create_post(
+  title text,
+  body text,
+  tags app_public.tag[],
+  privacy app_public.privacy default 'public'
+) returns text as $$
+  with create_post as (
+    insert into app_public.posts
+      (title, body, tags, user_id)
+    values
+      (create_post.title, create_post.body, create_post.tags, app_public.current_user_id())
+    returning id
+  ),
+  self_vote as (
+    insert into app_public.posts_votes
+      (vote, user_id, post_id)
+    values
+      ('like', app_public.current_user_id(), (select id from create_post))
+  )
+  select id from create_post
+$$ language sql volatile security definer;
+
+create or replace function app_public.create_comment(
+  post_id int,
+  body text,
+  parent_id uuid
+) returns uuid as $$
+  insert into app_public.comments (post_id, parent_id, body, user_id)
+  values (create_comment.post_id, create_comment.parent_id, create_comment.body, create_comment.user_id)
+  returning id
+$$ language sql volatile;
+
+create or replace function app_public.comment_count(
+  post_id int
+) returns int as $$
+  select
+    count(1)
+  from
+    app_public.comments
+  where
+    post_id = comment_count.post_id
+$$ language sql stable;
+
+create type app_public.post_info as (
+  post_id text,
+  title text,
+  body text,
+  username text,
+  tags app_public.tag[],
+  score int,
+  comment_count int,
+  created_at timestamptz,
+  updated_at timestamptz,
+  popularity float,
+  current_user_voted app_public.vote_type
+);
+
+create or replace function app_public.new_posts() returns setof app_public.post_info as $$
+  select
+    p.id,
+    title,
+    body,
+    username,
+    tags,
+    score,
+    comment_count,
+    p.created_at,
+    p.updated_at,
+    popularity,
+    v.vote
+  from
+    app_public.posts p
+    join app_public.users u on u.id = p.user_id
+    left join app_public.posts_votes v on p.id = v.post_id and v.user_id = app_public.current_user_id(),
+    lateral app_public.score_post(p.id) as score,
+    lateral app_public.comment_count(p.id),
+    lateral app_public.posts_popularity(score, p.created_at) as popularity
+  order by
+    p.created_at
+$$ language sql stable security definer;
+
+create or replace function app_public.top_posts() returns setof app_public.post_info as $$
+  select
+    p.id,
+    title,
+    body,
+    username,
+    tags,
+    score,
+    comment_count,
+    p.created_at,
+    p.updated_at,
+    popularity,
+    v.vote
+  from
+    app_public.posts p
+    join app_public.users u on u.id = p.user_id
+    left join app_public.posts_votes v on p.id = v.post_id and v.user_id = app_public.current_user_id(),
+    lateral app_public.score_post(p.id) score,
+    lateral app_public.comment_count(p.id),
+    lateral app_public.posts_popularity(score, p.created_at) as popularity
+  order by
+    popularity desc
+$$ language sql stable;
+
+create or replace function app_public.posts_with_tags(
+  tags app_public.tag[]
+) returns setof app_public.post_info as $$
+  select
+    p.id,
+    title,
+    body,
+    username,
+    tags,
+    score,
+    comment_count,
+    p.created_at,
+    p.updated_at,
+    popularity,
+    v.vote
+  from
+    app_public.posts p
+    join app_public.users u on u.id = p.user_id
+    left join app_public.posts_votes v on p.id = v.post_id and v.user_id = app_public.current_user_id(),
+    lateral app_public.score_post(p.id) score,
+    lateral app_public.comment_count(p.id),
+    lateral app_public.posts_popularity(score, p.created_at) as popularity
+  where
+    tags && posts_with_tags.tags
+$$ language sql stable security definer;
+
+create type app_public.search_results as (
+  post_id text,
+  title text,
+  body text,
+  username text,
+  tags app_public.tag[],
+  score int,
+  comment_count int,
+  created_at timestamptz,
+  updated_at timestamptz,
+  popularity float,
+  current_user_voted app_public.vote_type,
+  rank float
+);
+
+create or replace function app_public.search_posts(
+  query text
+) returns setof app_public.search_results as $$
+  select
+    p.id,
+    ts_headline(title, q, 'StartSel = *, StopSel = *') as title,
+    ts_headline(body, q, 'StartSel = *, StopSel = *') as body,
+    username,
+    tags,
+    score,
+    comment_count,
+    p.created_at,
+    p.updated_at,
+    popularity,
+    v.vote,
+    ts_rank(search, q) as rank
+  from app_public.posts p
+    join app_public.users u on u.id = p.user_id
+    left join app_public.posts_votes v on p.id = v.post_id and v.user_id = app_public.current_user_id(),
+    lateral websearch_to_tsquery(query) as q,
+    lateral app_public.score_post(p.id) as score,
+    lateral app_public.comment_count(p.id),
+    lateral app_public.posts_popularity(score, p.created_at) as popularity
+  where
+    search @@ q
+$$ language sql;
+
+create or replace function app_public.users_posts(
+  username text
+) returns setof app_public.post_info as $$
+  select
+    p.id,
+    title,
+    body,
+    username,
+    tags,
+    score,
+    comment_count,
+    p.created_at,
+    p.updated_at,
+    popularity,
+    pv.vote
+  from app_public.posts p
+    join app_public.users u on u.id = p.user_id
+    left join app_public.posts_votes pv on pv.post_id = p.id and pv.user_id = app_public.current_user_id(),
+    lateral app_public.score_post(p.id) as score,
+    lateral app_public.comment_count(p.id),
+    lateral app_public.posts_popularity(score, p.created_at) as popularity
+  where
+    u.username = users_posts.username
+  order by
+    p.created_at desc
+$$ language sql stable security definer;
+
+create or replace view app_public.top_tags as
+  select
+    unnest(tags) as tag,
+    count(1) as count
+  from app_public.posts
+  group by tag
+  order by count desc;
 `.trim(),
+
       "/00010-graphile-starter.sql": `
 drop schema if exists app_public cascade;
 drop schema if exists app_hidden cascade;
@@ -262,7 +456,9 @@ revoke all on schema public from public;
 alter default privileges revoke all on sequences from public;
 alter default privileges revoke all on functions from public;
 
-/* https://www.graphile.org/postgraphile/namespaces/#advice */
+/*
+ * https://www.graphile.org/postgraphile/namespaces/#advice
+ */
 
 create schema app_public;
 create schema app_hidden;
@@ -362,10 +558,88 @@ alter table app_private.sessions
 
 create index on app_private.sessions (user_id);
 
+---
+
+/*
+ * The sessions table is used to track who is logged in, if there are any
+ * restrictions on that session, when it was last active (so we know if it's
+ * still valid), etc.
+ *
+ * In Starter we only have an extremely limited implementation of this, but you
+ * could add things like "last_auth_at" to it so that you could track when they
+ * last officially authenticated; that way if you have particularly dangerous
+ * actions you could require them to log back in to allow them to perform those
+ * actions. (GitHub does this when you attempt to change the settings on a
+ * repository, for example.)
+ *
+ * The primary key is a cryptographically secure random uuid; the value of this
+ * primary key should be secret, and only shared with the user themself. We
+ * currently wrap this session in a webserver-level session (either using
+ * redis, or using \`connect-pg-simple\` which uses the
+ * \`connect_pg_simple_sessions\` table which we defined previously) so that we
+ * don't even send the raw session id to the end user, but you might want to
+ * consider exposing it for things such as mobile apps or command line
+ * utilities that may not want to implement cookies to maintain a cookie
+ * session.
+ */
+
+create table app_private.sessions (
+  uuid uuid not null default gen_random_uuid() primary key,
+  user_id uuid not null,
+  -- You could add access restriction columns here if you want, e.g. for OAuth scopes.
+  created_at timestamptz not null default now(),
+  last_active timestamptz not null default now()
+);
+alter table app_private.sessions enable row level security;
+
+-- To allow us to efficiently see what sessions are open for a particular user.
+create index on app_private.sessions (user_id);
+
+---
+
+/*
+ * This function is responsible for reading the \`my.session_id\`
+ * transaction setting (set from the \`pgSettings\` function within
+ * \`installPostGraphile.ts\`). Defining this inside a function means we can
+ * modify it in future to allow additional ways of defining the session.
+ */
+
+-- Note we have this in \`app_public\` but it doesn't show up in the GraphQL
+-- schema because we've used \`postgraphile.tags.jsonc\` to omit it. We could
+-- have put it in app_hidden to get the same effect more easily, but it's often
+-- useful to un-omit it to ease debugging auth issues.
+create function app_public.current_session_id() returns uuid as $$
+  select nullif(pg_catalog.current_setting('my.session_id', true), '')::uuid;
+$$ language sql stable;
+comment on function app_public.current_session_id() is
+  E'Handy method to get the current session ID.';
+
+/*
+ * We can figure out who the current user is by looking up their session in the
+ * sessions table using the \`current_session_id()\` function.
+ *
+ * A less secure but more performant version of this function might contain only:
+ *
+ *   select nullif(pg_catalog.current_setting('my.user_id', true), '')::uuid;
+ *
+ * The increased security of this implementation is because even if someone gets
+ * the ability to run SQL within this transaction they cannot impersonate
+ * another user without knowing their session_id (which should be closely
+ * guarded).
+ *
+ * The below implementation is more secure than simply indicating the user_id
+ * directly: even if an SQL injection vulnerability were to allow a user to set
+ * their \`my.session_id\` to another value, it would take them many
+ * millenia to be able to correctly guess someone else's session id (since it's
+ * a cryptographically secure random value that is kept secret). This makes
+ * impersonating another user virtually impossible.
+ */
+
 create function app_public.current_user_id() returns uuid as $$
-  select user_id from app_private.sessions
-  where uuid = nullif(pg_catalog.current_setting('my.session_id', true), '')::uuid;
+  select user_id from app_private.sessions where uuid = app_public.current_session_id();
 $$ language sql stable security definer set search_path to pg_catalog, public, pg_temp;
+comment on function app_public.current_user_id() is
+  E'Handy method to get the current user ID for use in RLS policies, etc; in GraphQL, use \`currentUser{id}\` instead.';
 
 /*
  * The users table stores (unsurprisingly) the users of our application. You'll
@@ -853,7 +1127,7 @@ begin
   -- Delete the session
   delete from app_private.sessions where uuid = app_public.current_session_id();
   -- Clear the identifier from the transaction
-  perform set_config('jwt.claims.session_id', '', true);
+  perform set_config('my.session_id', '', true);
 end;
 $$ language plpgsql security definer volatile set search_path to pg_catalog, public, pg_temp;
 
