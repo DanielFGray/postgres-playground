@@ -65,7 +65,7 @@ export class DatabaseExplorerProvider
               kind: "tables",
               label: "tables",
               icon: "symbol-namespace",
-              state: vscode.TreeItemCollapsibleState.Collapsed,
+              state: vscode.TreeItemCollapsibleState.Expanded,
             }),
           );
         }
@@ -80,7 +80,7 @@ export class DatabaseExplorerProvider
               kind: "views",
               label: "views",
               icon: "symbol-namespace",
-              state: vscode.TreeItemCollapsibleState.Collapsed,
+              state: vscode.TreeItemCollapsibleState.Expanded,
             }),
           );
         }
@@ -93,7 +93,7 @@ export class DatabaseExplorerProvider
               kind: "functions",
               label: "functions",
               icon: "symbol-namespace",
-              state: vscode.TreeItemCollapsibleState.Collapsed,
+              state: vscode.TreeItemCollapsibleState.Expanded,
             }),
           );
         }
@@ -113,7 +113,7 @@ export class DatabaseExplorerProvider
               kind: "types",
               label: "types",
               icon: "symbol-namespace",
-              state: vscode.TreeItemCollapsibleState.Collapsed,
+              state: vscode.TreeItemCollapsibleState.Expanded,
             }),
           );
         }
