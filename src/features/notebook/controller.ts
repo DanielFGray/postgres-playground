@@ -71,7 +71,7 @@ function renderRowsAsTable({ rows, fields, statement }: Results): string {
   return `<table>${
     fields.length < 1
       ? null
-      : `<thead><tr>${fields.map(col => `<th>${col.name}</th>`)}</tr></thead>`
+      : `<thead><tr>${fields.map(col => `<th>${col.name}</th>`).join('')}</tr></thead>`
   }<tbody>${
     fields.length < 1
       ? `<tr><td>${statement}</td></tr>`
@@ -82,7 +82,7 @@ function renderRowsAsTable({ rows, fields, statement }: Results): string {
               `<tr>${fields.map(f => {
                 const value = row[f.name];
                 return `<td style="white-space:pre">${["object"].includes(typeof value) ? JSON.stringify(value, null, 2) : value}</td>`;
-              })}</tr>`,
-          )
+              }).join('')}</tr>`,
+          ).join('')
   }</tbody></table>`;
 }
