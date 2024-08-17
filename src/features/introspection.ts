@@ -102,7 +102,14 @@ export class DatabaseExplorerProvider
           );
         }
         if (
-          this.introspection.types.find(type => type.typnamespace === parent.id)
+          this.introspection.types.find(
+            t =>
+              t.typnamespace === parent.id &&
+              (t.typtype === "e" || t.typtype === "d"),
+          ) ||
+          this.introspection.classes.find(
+            cls => cls.relkind === "c" && cls.relnamespace === parent.id,
+          )
         ) {
           items.push(
             new Entity({
