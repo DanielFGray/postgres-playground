@@ -8,10 +8,6 @@ import {
 import { Results } from "~/types.d";
 import { PGLITE_EXECUTE } from "./constants";
 
-const volatileMap = {
-  i: "immutable",
-  s: "stable",
-};
 export class DatabaseExplorerProvider
   implements vscode.TreeDataProvider<Entity>
 {
@@ -215,13 +211,15 @@ export class DatabaseExplorerProvider
         return this.introspection.procs
           .filter(proc => proc.pronamespace === id)
           .map(proc => {
-            const type = this.introspection.getType({ id: proc?.prorettype });
+            const type = this.introspection!.getType({ id: proc?.prorettype });
             const returnType = proc.proretset
               ? "setof " + type?.typname
               : type?.typname;
+            const args =
+              proc.pronargs && proc.pronargs > 0 ? proc.pronargs : "";
             return new Entity({
               id: proc.oid,
-              label: `${proc.proname}(${proc.pronargs && proc.pronargs > 0 ? proc.pronargs : ""}):`,
+              label: `${proc.proname}(${args}):`,
               kind: "function",
               description: returnType,
               icon: "symbol-function",
@@ -237,9 +235,10 @@ export class DatabaseExplorerProvider
           new Entity({
             id: `${parent.id}-vol`,
             label:
-              func.provolatile && func.provolatile in volatileMap
-                ? volatileMap[func.provolatile as "i" | "s"]
-                : "volatile",
+              {
+                i: "immutable",
+                s: "stable",
+              }[func.provolatile as "i" | "s"] ?? "volatile",
             kind: "label",
             icon: "symbol-property",
             state: vscode.TreeItemCollapsibleState.None,
