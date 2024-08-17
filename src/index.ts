@@ -108,8 +108,8 @@ import defaultConfiguration from "./user/configuration.json?raw";
 import { workerConfig } from "./tools/extHostWorker";
 import "vscode/localExtensionHost";
 import "./style.css";
-import "./features/notebook/markdown";
-import "./features/notebook/sql";
+// import "./features/notebook/markdown";
+// import "./features/notebook/sql";
 // import './features/output'
 // import './features/debugger'
 import "./features/search";

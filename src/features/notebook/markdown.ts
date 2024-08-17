@@ -1,37 +1,4 @@
-import { ExtensionHostKind, registerExtension } from "vscode/extensions";
 import * as vscode from "vscode";
-import { SQLNotebookExecutionController } from "./controller";
-
-const { getApi } = registerExtension(
-  {
-    name: "markdown-notebook",
-    publisher: "pg-playground",
-    version: "0.1.0",
-    engines: {
-      vscode: "*",
-    },
-    activationEvents: ["onLanguage:sql", "onStartupFinished"],
-    contributes: {
-      notebooks: [
-        {
-          type: "markdown-notebook",
-          displayName: "Markdown Notebook",
-          priority: "default",
-          selector: [{ filenamePattern: "*.md" }],
-        },
-      ],
-    },
-  },
-  ExtensionHostKind.LocalProcess,
-);
-
-void getApi().then(async vscode => {
-  vscode.workspace.registerNotebookSerializer(
-    "markdown-notebook",
-    new MarkdownSerializer(),
-  );
-  new SQLNotebookExecutionController("markdown-notebook");
-});
 
 export class MarkdownSerializer implements vscode.NotebookSerializer {
   private readonly decoder = new TextDecoder();

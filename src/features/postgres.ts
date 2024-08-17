@@ -30,15 +30,20 @@ import {
 } from "@codingame/monaco-vscode-workbench-service-override";
 import * as semicolons from "postgres-semicolons";
 import { throttle, zip } from "~lib/index";
-import * as services from "vscode/services";
-import { BrowserStorageService } from "@codingame/monaco-vscode-storage-service-override";
+import getWorkspace from "~/example-small-schema";
+import { fileSystemProvider } from "~/fsProvider";
+import { RegisteredMemoryFile } from "@codingame/monaco-vscode-files-service-override";
 import {
   PGLITE_RESET,
   PGLITE_EXECUTE,
   PGLITE_INTROSPECT,
   DATABASE_EXPLORER,
   DATABASE_MIGRATE,
+  WORKSPACE_PREFIX,
 } from "./constants";
+import { SQLNotebookExecutionController } from "./notebook/controller";
+import { SQLSerializer } from "./notebook/sql";
+import { MarkdownSerializer } from "./notebook/markdown";
 
 const { getApi } = registerExtension(
   {
@@ -49,6 +54,20 @@ const { getApi } = registerExtension(
     capabilities: { virtualWorkspaces: true },
     extensionKind: ["workspace"],
     contributes: {
+      notebooks: [
+        {
+          type: "sql-notebook",
+          displayName: "SQL Notebook",
+          priority: "default",
+          selector: [{ filenamePattern: "*.sql" }],
+        },
+        {
+          type: "markdown-notebook",
+          displayName: "Markdown Notebook",
+          priority: "default",
+          selector: [{ filenamePattern: "*.md" }],
+        },
+      ],
       commands: [
         {
           command: PGLITE_RESET,
@@ -200,6 +219,41 @@ function makePglite() {
 const version = db.query<{ version: string }>("select version()");
 
 void getApi().then(async vscode => {
+  vscode.workspace.registerNotebookSerializer(
+    "markdown-notebook",
+    new MarkdownSerializer(),
+  );
+  new SQLNotebookExecutionController("markdown-notebook");
+
+  vscode.workspace.registerNotebookSerializer(
+    "sql-notebook",
+    new SQLSerializer(),
+  );
+
+  new SQLNotebookExecutionController("sql-notebook");
+
+  const { defaultLayout, files } = getWorkspace();
+
+  Object.entries(files).forEach(([path, value]) =>
+    fileSystemProvider.registerFile(
+      new RegisteredMemoryFile(
+        vscode.Uri.file(
+          WORKSPACE_PREFIX.concat(path.startsWith("/") ? path : `/${path}`),
+        ),
+        value,
+      ),
+    ),
+  );
+
+  defaultLayout.editors.forEach(editor => {
+    const uri = vscode.Uri.file(
+      WORKSPACE_PREFIX.concat(
+        editor.uri.startsWith("/") ? editor.uri : `/${editor.uri}`,
+      ),
+    );
+    vscode.window.showNotebookDocument(uri);
+  });
+
   const pgliteOutputChannel = vscode.window.createOutputChannel("PGlite");
   pgliteOutputChannel.appendLine("starting postgres");
   pgliteOutputChannel.show();
