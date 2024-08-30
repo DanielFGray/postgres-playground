@@ -8,14 +8,17 @@ create type app_public.privacy as enum(
 
 create table app_public.playgrounds (
   id int primary key generated always as identity (start 1000),
-  user_id uuid not null default app_public.current_user_id() references app_public.users on delete cascade,
-  fork_id int references app_public.playgrounds,
+  user_id uuid not null default app_public.current_user_id()
+    references app_public.users on delete cascade,
+  fork_id int
+    references app_public.playgrounds,
   privacy app_public.privacy not null default 'public',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  name text,
+  name text check (name ~ '^[a-zA-Z0-9_-]+$'),
   description text,
-  data jsonb not null
+  data jsonb not null,
+  unique (user_id, name)
 );
 
 create index on app_public.playgrounds (user_id);
