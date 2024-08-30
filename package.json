@@ -129,7 +129,7 @@
     "@codingame/monaco-vscode-workbench-service-override": "^7.0.10",
     "@codingame/monaco-vscode-working-copy-service-override": "^7.0.10",
     "@codingame/monaco-vscode-workspace-trust-service-override": "^7.0.10",
-    "@electric-sql/pglite": "^0.2.1",
+    "@electric-sql/pglite": "^0.2.4",
     "@elysiajs/eden": "^1.1.1",
     "@lucia-auth/adapter-postgresql": "^3.1.2",
     "@octokit/webhooks": "^13.3.0",
