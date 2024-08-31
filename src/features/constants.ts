@@ -6,6 +6,8 @@ export const PGLITE_EXECUTE = "pglite.execute";
 export const PGLITE_RESET = "pglite.reset";
 export const PGLITE_INTROSPECT = "introspection.refresh";
 export const DATABASE_MIGRATE = "database.migrate";
+export const ERD_SHOW = "pglite.erd.show";
+export const ERD_UPDATE = "pglite.erd.update";
 
 // databaseExplorer view id
 export const DATABASE_EXPLORER = "databaseExplorer";

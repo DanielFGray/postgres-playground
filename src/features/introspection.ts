@@ -5,8 +5,8 @@ import {
   makeIntrospectionQuery,
   parseIntrospectionResults,
 } from "pg-introspection";
-import { Results } from "~/types.d";
-import { PGLITE_EXECUTE } from "./constants";
+import { ERD_UPDATE } from "./constants";
+import * as db from "./pglite";
 
 export class DatabaseExplorerProvider
   implements vscode.TreeDataProvider<Entity>
@@ -27,6 +27,7 @@ export class DatabaseExplorerProvider
       true,
     );
     this.#onDidChangeTreeData.fire();
+    vscode.commands.executeCommand(ERD_UPDATE);
   };
 
   getTreeItem(element: Entity): vscode.TreeItem {

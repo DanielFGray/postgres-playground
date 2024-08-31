@@ -17,10 +17,13 @@ import {
   DATABASE_EXPLORER,
   DATABASE_MIGRATE,
   WORKSPACE_PREFIX,
+  ERD_SHOW,
+  ERD_UPDATE,
 } from "./constants";
 import { SQLNotebookExecutionController } from "./notebook/controller";
 import { SQLSerializer } from "./notebook/sql";
 import { MarkdownSerializer } from "./notebook/markdown";
+import { getMermaidERD, mermaidRender } from "./erd";
 
 const { getApi } = registerExtension(
   {
@@ -71,6 +74,11 @@ const { getApi } = registerExtension(
           title: "Login with GitHub",
           icon: "github",
         },
+        {
+          command: ERD_SHOW,
+          title: "Show entity relationship diagram",
+          icon: "",
+        },
       ],
       menus: {
         commandPalette: [
@@ -80,6 +88,11 @@ const { getApi } = registerExtension(
           },
         ],
         "view/title": [
+          {
+            command: ERD_SHOW,
+            when: "view == databaseExplorer",
+            group: "navigation",
+          },
           {
             command: PGLITE_INTROSPECT,
             when: "view == databaseExplorer",
@@ -267,6 +280,39 @@ void getApi().then(async vscode => {
       rows: [{ version }],
     } = await db.query<{ version: string }>("select version()");
     pgliteOutputChannel.appendLine(version);
+  });
+
+  function createErdPanel() {
+    return vscode.window.createWebviewPanel(
+      "erd",
+      "Entity Relationship Diagram",
+      vscode.ViewColumn.Two,
+      {
+        enableCommandUris: true,
+        enableScripts: true,
+        retainContextWhenHidden: false,
+      },
+    );
+  }
+  let erdPanel: vscode.WebviewPanel | undefined;
+
+  const [updateErd] = throttle(
+    async () => {
+      if (erdPanel) {
+        const erd = await getMermaidERD();
+        console.log(erd);
+        const { svg } = await mermaidRender(erd);
+        erdPanel.webview.html = svg;
+      }
+    },
+    200,
+  );
+
+  vscode.commands.registerCommand(ERD_UPDATE, updateErd);
+  vscode.commands.registerCommand(ERD_SHOW, () => {
+    if (!erdPanel) erdPanel = createErdPanel();
+    updateErd();
+    erdPanel.reveal();
   });
 
   // vscode.languages.registerDocumentFormattingEditProvider("sql", {
