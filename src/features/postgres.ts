@@ -1,35 +1,12 @@
 import * as vscode from "vscode";
+import * as db from "./pglite";
 import { ExtensionHostKind, registerExtension } from "vscode/extensions";
-import { PGlite } from "@electric-sql/pglite";
-import { live } from "@electric-sql/pglite/live";
-import { vector } from "@electric-sql/pglite/vector";
-import { amcheck } from "@electric-sql/pglite/contrib/amcheck";
-import { auto_explain } from "@electric-sql/pglite/contrib/auto_explain";
-import { bloom } from "@electric-sql/pglite/contrib/bloom";
-import { btree_gin } from "@electric-sql/pglite/contrib/btree_gin";
-import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
-import { citext } from "@electric-sql/pglite/contrib/citext";
-import { cube } from "@electric-sql/pglite/contrib/cube";
-import { earthdistance } from "@electric-sql/pglite/contrib/earthdistance";
-import { fuzzystrmatch } from "@electric-sql/pglite/contrib/fuzzystrmatch";
-import { hstore } from "@electric-sql/pglite/contrib/hstore";
-import { isn } from "@electric-sql/pglite/contrib/isn";
-import { lo } from "@electric-sql/pglite/contrib/lo";
-import { ltree } from "@electric-sql/pglite/contrib/ltree";
-import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
-import { seg } from "@electric-sql/pglite/contrib/seg";
-import { tablefunc } from "@electric-sql/pglite/contrib/tablefunc";
-import { tcn } from "@electric-sql/pglite/contrib/tcn";
-import { tsm_system_rows } from "@electric-sql/pglite/contrib/tsm_system_rows";
-import { tsm_system_time } from "@electric-sql/pglite/contrib/tsm_system_time";
-import { uuid_ossp } from "@electric-sql/pglite/contrib/uuid_ossp";
 import { DatabaseExplorerProvider } from "./introspection";
 import {
   registerCustomView,
   ViewContainerLocation,
 } from "@codingame/monaco-vscode-workbench-service-override";
-import * as semicolons from "postgres-semicolons";
-import { throttle, zip } from "~lib/index";
+import { throttle } from "~lib/index";
 import getWorkspace from "~/example-small-schema";
 import { fileSystemProvider } from "~/fsProvider";
 import { RegisteredMemoryFile } from "@codingame/monaco-vscode-files-service-override";
@@ -186,38 +163,6 @@ const { getApi } = registerExtension(
 //   // }]
 // });
 
-let db = makePglite();
-
-function makePglite() {
-  return new PGlite(undefined, {
-    extensions: {
-      live,
-      vector,
-      amcheck,
-      auto_explain,
-      bloom,
-      btree_gin,
-      btree_gist,
-      citext,
-      cube,
-      earthdistance,
-      fuzzystrmatch,
-      hstore,
-      isn,
-      lo,
-      ltree,
-      pg_trgm,
-      seg,
-      tablefunc,
-      tcn,
-      tsm_system_rows,
-      tsm_system_time,
-      uuid_ossp,
-    },
-  });
-}
-const version = db.query<{ version: string }>("select version()");
-
 void getApi().then(async vscode => {
   vscode.workspace.registerNotebookSerializer(
     "markdown-notebook",
@@ -265,48 +210,45 @@ void getApi().then(async vscode => {
   vscode.commands.registerCommand(DATABASE_MIGRATE, async function migrate() {
     const folder = vscode.workspace.workspaceFolders?.[0];
     if (!folder) return;
-    const pattern = new vscode.RelativePattern(folder, "*.sql");
-    // TODO: make cancellable
-    const files = await vscode.workspace.findFiles(pattern);
-    if (!files.length)
-      return vscode.window.showInformationMessage("No migration files found");
-    console.log(files);
-    vscode.window.showInformationMessage(
-      `executing ${files.length} migration files`,
-    );
-    for (const f of files) {
-      const file = await vscode.workspace.fs.readFile(f);
-      await vscode.commands.executeCommand(PGLITE_EXECUTE, file.toString());
+    // recursively read paths
+    const paths = (await fileSystemProvider.readdir(folder.uri))
+      .filter(
+        ([f, type]) => type === FileType.File && /\/?\d+[^/]+\.sql$/.test(f),
+      )
+      .sort(([a], [b]) => a.localeCompare(b));
+    if (!paths.length) {
+      return vscode.window.showInformationMessage(
+        "No migration files detected",
+      );
     }
-    return vscode.window.showInformationMessage(`migrations finished`);
+    const uris = paths.map(([path]) => vscode.Uri.joinPath(folder.uri, path));
+    for (const f of uris) {
+      const raw = await vscode.workspace.fs.readFile(f);
+      const sql = new TextDecoder().decode(raw);
+      await vscode.commands.executeCommand(PGLITE_EXECUTE, sql);
+    }
+    return vscode.window.showInformationMessage(
+      `finished ${paths.length} migrations`,
+    );
   });
 
   vscode.commands.registerCommand(
     PGLITE_EXECUTE,
     async function exec(sql: string) {
       try {
-        const raw = await db.exec(sql, queryOpts);
-        const splits = semicolons.parseSplits(sql, false);
-        const queries = semicolons.splitStatements(sql, splits.positions, true);
-        const result = zip(queries, raw).map(([q, r]) => {
-          const stmtSplits = q.slice(0, 30).split(/\s+/);
-          const statement = q.startsWith("create or replace")
-            ? [stmtSplits[0], stmtSplits[3]].join(" ").toUpperCase()
-            : q.startsWith("create") ||
-                q.startsWith("alter") ||
-                q.startsWith("drop")
-              ? [stmtSplits[0], stmtSplits[1]].join(" ").toUpperCase()
-              : stmtSplits[0].toUpperCase();
-          if (
-            ["CREATE", "ALTER", "DROP"].some(stmt => statement.startsWith(stmt))
-          ) {
-            vscode.commands.executeCommand(PGLITE_INTROSPECT);
-          }
-          return { ...r, query: q, statement };
-        });
+        const result = await db.exec(sql, queryOpts);
         result.forEach(stmt => {
           pgliteOutputChannel.appendLine(stmt.statement);
         });
+        if (
+          result.some(r =>
+            ["CREATE", "ALTER", "DROP"].some(stmt =>
+              r.statement.startsWith(stmt),
+            ),
+          )
+        ) {
+          vscode.commands.executeCommand(PGLITE_INTROSPECT);
+        }
         return result;
       } catch (error) {
         pgliteOutputChannel.appendLine(
@@ -319,8 +261,8 @@ void getApi().then(async vscode => {
 
   vscode.commands.registerCommand(PGLITE_RESET, async function reset() {
     pgliteOutputChannel.replace("restarting postgres\n");
-    if (db) await db.close();
-    db = makePglite();
+    await db.reset();
+    vscode.commands.executeCommand(PGLITE_INTROSPECT);
     const {
       rows: [{ version }],
     } = await db.query<{ version: string }>("select version()");
