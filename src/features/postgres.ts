@@ -201,7 +201,7 @@ void getApi().then(async vscode => {
 
   const pgliteOutputChannel = vscode.window.createOutputChannel("PGlite");
   pgliteOutputChannel.appendLine("starting postgres");
-  pgliteOutputChannel.show();
+  // pgliteOutputChannel.show();
   pgliteOutputChannel.appendLine((await version).rows[0]?.version);
   pgliteOutputChannel.appendLine("Powered by @electric-sql/pglite");
 
