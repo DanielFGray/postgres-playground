@@ -197,6 +197,8 @@ const { getApi } = registerExtension(
 // });
 
 void getApi().then(async vscode => {
+  const version = db.query<{ version: string }>("select version()");
+
   vscode.workspace.registerNotebookSerializer(
     "markdown-notebook",
     new MarkdownSerializer(),
