@@ -9,7 +9,10 @@ import {
 import { throttle } from "~lib/index";
 import getWorkspace from "~/example-small-schema";
 import { fileSystemProvider } from "~/fsProvider";
-import { RegisteredMemoryFile } from "@codingame/monaco-vscode-files-service-override";
+import {
+  FileType,
+  RegisteredMemoryFile,
+} from "@codingame/monaco-vscode-files-service-override";
 import {
   PGLITE_RESET,
   PGLITE_EXECUTE,

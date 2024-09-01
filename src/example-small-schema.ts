@@ -3,7 +3,7 @@ export default function getWorkspace() {
     defaultLayout: {
       editors: [
         {
-          uri: "/example.sql",
+          uri: "/0001-example.sql",
           viewColumn: 1,
         },
       ],
@@ -15,7 +15,7 @@ export default function getWorkspace() {
       },
     },
     files: {
-      "/example.sql": `
+      "/0001-example.sql": `
 drop table if exists nums cascade;
 
 create table nums as
