@@ -5,8 +5,7 @@ import {
   makeIntrospectionQuery,
   parseIntrospectionResults,
 } from "pg-introspection";
-import { ERD_UPDATE } from "./constants";
-import * as db from "./pglite";
+import { PGLITE_EXECUTE, ERD_UPDATE } from "./constants";
 
 export class DatabaseExplorerProvider
   implements vscode.TreeDataProvider<Entity>
