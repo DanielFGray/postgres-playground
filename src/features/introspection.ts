@@ -27,7 +27,6 @@ export class DatabaseExplorerProvider
       true,
     );
     this.#onDidChangeTreeData.fire();
-    vscode.commands.executeCommand(ERD_UPDATE);
   };
 
   getTreeItem(element: Entity): vscode.TreeItem {

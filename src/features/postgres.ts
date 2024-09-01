@@ -284,6 +284,7 @@ void getApi().then(async vscode => {
           )
         ) {
           vscode.commands.executeCommand(PGLITE_INTROSPECT);
+          vscode.commands.executeCommand(ERD_UPDATE);
         }
         return result;
       } catch (error) {
