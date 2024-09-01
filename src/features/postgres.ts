@@ -27,6 +27,7 @@ import { SQLNotebookExecutionController } from "./notebook/controller";
 import { SQLSerializer } from "./notebook/sql";
 import { MarkdownSerializer } from "./notebook/markdown";
 import { getMermaidERD, mermaidRender } from "./erd";
+import { api } from "~/api";
 
 const { getApi } = registerExtension(
   {
@@ -374,11 +375,11 @@ void getApi().then(async vscode => {
   });
 });
 
+// const { data: me } = await api.me.get();
 // class PlaygroundSidebarView implements vscode.WebviewViewProvider {
 //   public static readonly id = "playground-info";
 
 //   async #getHtmlForWebview(webview: vscode.Webview) {
-//     const me = await fetch("/api/me").then(res => res.json());
 //     const userInfo = me
 //       ? `<p>hello ${me.username}</p>
 //         <form method="post" action="/api/logout">
