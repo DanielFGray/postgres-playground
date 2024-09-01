@@ -37,6 +37,23 @@ const { getApi } = registerExtension(
     capabilities: { virtualWorkspaces: true },
     extensionKind: ["workspace"],
     contributes: {
+      configuration: [
+        {
+          order: 22,
+          title: "Postgres Playground",
+          properties: {
+            "pg-playground.introspection-tree.grouping": {
+              title: "introspection tree grouping",
+
+              type: "string",
+              // scope: "window",
+              enum: ["alphabetical", "grouped by type"],
+              default: "grouped by type",
+              description: "Grouping of the introspection tree.",
+            },
+          },
+        },
+      ],
       notebooks: [
         {
           type: "sql-notebook",

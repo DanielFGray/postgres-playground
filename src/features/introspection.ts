@@ -53,6 +53,117 @@ export class DatabaseExplorerProvider
     }
     switch (parent.kind) {
       case "schema": {
+        if (
+          vscode.workspace
+            .getConfiguration("pg-playground.introspection-tree")
+            .get(
+              "grouping",
+              "grouped by type" as "grouped by type" | "alphabetical",
+            ) === "alphabetical"
+        ) {
+          const id = parent.id;
+          const tables = this.introspection.classes
+            .filter(table => table.relnamespace === id && table.relkind === "r")
+            .map(
+              t =>
+                new Entity({
+                  id: t.oid,
+                  label: t.relname,
+                  kind: "table",
+                  description: "table",
+                  icon: "symbol-structure",
+                  state: vscode.TreeItemCollapsibleState.Collapsed,
+                }),
+            );
+          const views = this.introspection.classes
+            .filter(table => table.relnamespace === id && table.relkind === "v")
+            .map(
+              t =>
+                new Entity({
+                  id: t.oid,
+                  label: t.relname,
+                  kind: "view",
+                  description: "view",
+                  icon: "symbol-structure",
+                  state: vscode.TreeItemCollapsibleState.Collapsed,
+                }),
+            );
+          const domains = this.introspection.types
+            .filter(t => t.typtype === "d" && t.typnamespace === id)
+            .map(
+              t =>
+                new Entity({
+                  id: t.oid,
+                  label: t.typname,
+                  kind: "label",
+                  // TODO: find how to get domain type name [text, int, etc]
+                  description: "domain",
+                  icon: "symbol-attribute",
+                  state: vscode.TreeItemCollapsibleState.None,
+                }),
+            );
+
+          const enums = this.introspection.types
+            .filter(t => t.typtype === "e" && t.typnamespace === id)
+            .map(t => {
+              const values = t.getEnumValues();
+              if (!values)
+                throw new Error(`could not find enum values for ${t.typname}`);
+              return new Entity({
+                id: t.oid,
+                label: t.typname,
+                kind: "enum",
+                description: "enum",
+                icon: "symbol-attribute",
+                state: vscode.TreeItemCollapsibleState.Collapsed,
+                // values: values.map(x => x.enumlabel),
+              });
+            });
+
+          const composites = this.introspection.classes
+            .filter(cls => cls.relkind === "c" && cls.relnamespace === id)
+            .map(
+              t =>
+                new Entity({
+                  id: t.oid,
+                  label: t.relname,
+                  kind: "composite",
+                  description: "composite",
+                  icon: "symbol-structure",
+                  state: vscode.TreeItemCollapsibleState.Collapsed,
+                  // values: t.getAttributes().map(a => {
+                  //   const type = a.getType();
+                  //   if (!type)
+                  //     throw new Error(
+                  //       `could not find type for composite attribute ${t.relname}`,
+                  //     );
+                  //   return { name: a.attname, type: type.typname };
+                  // }),
+                }),
+            );
+          const types = [...domains, ...enums, ...composites];
+          const functions = this.introspection.procs
+            .filter(proc => proc.pronamespace === id)
+            .map(proc => {
+              const type = this.introspection!.getType({
+                id: proc?.prorettype,
+              });
+              const returnType = proc.proretset
+                ? "setof " + type?.typname
+                : type?.typname;
+              const args =
+                proc.pronargs && proc.pronargs > 0 ? proc.pronargs : "";
+              return new Entity({
+                id: proc.oid,
+                label: `${proc.proname}(${args}):`,
+                kind: "function",
+                description: "function",
+                icon: "symbol-function",
+                state: vscode.TreeItemCollapsibleState.Collapsed,
+              });
+            });
+          return [...tables, ...views, ...types, ...functions];
+        }
         const items = [];
         if (
           this.introspection.classes.find(
