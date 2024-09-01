@@ -6,6 +6,7 @@ import {
   parseIntrospectionResults,
 } from "pg-introspection";
 import { PGLITE_EXECUTE, ERD_UPDATE } from "./constants";
+import { Results } from "~/types";
 
 export class DatabaseExplorerProvider
   implements vscode.TreeDataProvider<Entity>
