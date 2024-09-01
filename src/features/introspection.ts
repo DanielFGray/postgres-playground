@@ -35,7 +35,6 @@ export class DatabaseExplorerProvider
   }
 
   getChildren(parent?: Entity): Entity[] {
-    console.log(parent);
     if (!this.introspection) return [];
     if (!parent) {
       return this.introspection.namespaces
@@ -341,7 +340,6 @@ export class DatabaseExplorerProvider
         );
         return [
           ...columns.map(c => {
-            console.log(primaryKey, c.attname);
             return new Entity({
               id: c.oid,
               label: c.attname,
