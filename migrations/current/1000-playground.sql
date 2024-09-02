@@ -85,3 +85,39 @@ grant
   insert (playground_id),
   delete
   on app_public.playground_stars to :DATABASE_VISITOR;
+
+------------------------------------------------------------------------------------------------------------------------
+
+create table app_public.playground_comments (
+  id int primary key generated always as identity (start 1000),
+  user_id uuid not null default app_public.current_user_id() references app_public.users on delete cascade,
+  playground_id int not null references app_public.playgrounds on delete cascade,
+  body text not null,
+  range json,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table app_public.playground_comments enable row level security;
+
+create policy select_all on app_public.playground_comments
+  for select using (true);
+create policy insert_own on app_public.playground_comments
+  for insert with check (user_id = app_public.current_user_id());
+create policy update_own on app_public.playground_comments
+  for update using (user_id = app_public.current_user_id());
+create policy delete_own on app_public.playground_comments
+  for delete using (user_id = app_public.current_user_id());
+
+grant
+  select,
+  insert (body, range, playground_id),
+  update (body),
+  delete
+  on app_public.playground_comments to :DATABASE_VISITOR;
+
+create trigger _100_timestamps
+  before insert or update
+  on app_public.playground_comments
+  for each row
+  execute procedure app_private.tg__timestamps();
