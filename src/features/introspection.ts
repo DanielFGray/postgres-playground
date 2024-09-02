@@ -230,7 +230,7 @@ export class DatabaseExplorerProvider
         return items;
       }
       case "tables": {
-        const id = parent.id.split("-")[0];
+        const [id] = parent.id.split("-");
         return this.introspection.classes
           .filter(table => table.relnamespace === id && table.relkind === "r")
           .map(
@@ -245,7 +245,7 @@ export class DatabaseExplorerProvider
           );
       }
       case "views": {
-        const id = parent.id.split("-")[0];
+        const [id] = parent.id.split("-");
         return this.introspection.classes
           .filter(table => table.relnamespace === id && table.relkind === "v")
           .map(
@@ -260,7 +260,7 @@ export class DatabaseExplorerProvider
           );
       }
       case "types": {
-        const id = parent.id.split("-")[0];
+        const [id] = parent.id.split("-");
         const domains = this.introspection.types
           .filter(t => t.typtype === "d" && t.typnamespace === id)
           .map(
@@ -317,7 +317,7 @@ export class DatabaseExplorerProvider
         return [...domains, ...enums, ...composites];
       }
       case "functions": {
-        const id = parent.id.split("-")[0];
+        const [id] = parent.id.split("-");
         return this.introspection.procs
           .filter(proc => proc.pronamespace === id)
           .map(proc => {
@@ -380,7 +380,7 @@ export class DatabaseExplorerProvider
       }
 
       case "fnreturns": {
-        const id = parent.id.split("-")[0];
+        const [id] = parent.id.split("-");
         const proc = this.introspection.getProc({ id });
         if (!proc) return [];
         const type = this.introspection.getType({ id: proc?.prorettype });
@@ -397,7 +397,7 @@ export class DatabaseExplorerProvider
       }
 
       case "fnarguments": {
-        const id = parent.id.split("-")[0];
+        const [id] = parent.id.split("-");
         const proc = this.introspection.getProc({ id });
         const types = proc?.proargtypes ?? [];
         return (
