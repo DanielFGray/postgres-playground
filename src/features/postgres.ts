@@ -19,6 +19,7 @@ import {
   PGLITE_INTROSPECT,
   DATABASE_EXPLORER,
   DATABASE_MIGRATE,
+  LATEST_POSTS,
   WORKSPACE_PREFIX,
   ERD_SHOW,
   ERD_UPDATE,
@@ -100,6 +101,11 @@ const { getApi } = registerExtension(
           title: "Show entity relationship diagram",
           icon: "",
         },
+        {
+          command: LATEST_POSTS,
+          title: "Latest Posts",
+          icon: "clock",
+        },
       ],
       menus: {
         commandPalette: [
@@ -141,6 +147,10 @@ const { getApi } = registerExtension(
         ],
       },
       viewsWelcome: [
+        {
+          view: "workbench.explorer.emptyView",
+          contents: `[see latest](command:${LATEST_POSTS})`,
+        },
         {
           view: DATABASE_EXPLORER,
           contents: "Run some commands to see your schema",
@@ -338,6 +348,53 @@ void getApi().then(async vscode => {
     updateErd();
     erdPanel.reveal();
   });
+
+  function createLatestPostsPanel() {
+    return vscode.window.createWebviewPanel(
+      "latest-posts",
+      "Latest Posts",
+      vscode.ViewColumn.Two,
+      {
+        retainContextWhenHidden: true,
+        enableScripts: true,
+        enableCommandUris: true,
+      },
+    );
+  }
+  let latestPanel: vscode.WebviewPanel | undefined;
+
+  async function* renderLatestPosts() {
+    const { data, error } = await api.playgrounds.get();
+    if (!data || error) {
+      if (error) console.log(error);
+      yield "failed to fetch latest posts";
+      return;
+    }
+    if (data.length === 0) {
+      yield "no posts [yet]";
+      return;
+    }
+    const posts = data.map(p => {
+      return `<tr>
+        <td><a href="/p/${p.id}">${p.name}</a></td>
+        <td><a href="/u/${p.user.username}">${p.user.username}</a></td>
+        <td>${p.description}</td>
+        <td>${p.stars} stars</td>
+      </tr>`;
+    });
+    yield `<table>${posts.join("")}</table>`;
+  }
+
+  vscode.commands.registerCommand(LATEST_POSTS, async () => {
+    if (latestPanel) latestPanel.dispose();
+    latestPanel = createLatestPostsPanel();
+    latestPanel.reveal();
+    for await (const html of renderLatestPosts()) {
+      latestPanel.webview.html = html;
+    }
+  });
+
+  vscode.commands.executeCommand(LATEST_POSTS);
 
   // vscode.languages.registerDocumentFormattingEditProvider("sql", {
   //   provideDocumentFormattingEdits(
