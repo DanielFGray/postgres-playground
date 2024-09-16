@@ -283,25 +283,24 @@ void getApi().then(async vscode => {
   vscode.commands.registerCommand(DATABASE_MIGRATE, async function migrate() {
     const folder = vscode.workspace.workspaceFolders?.[0];
     if (!folder) return;
-    // recursively read paths
-    const paths = (await fileSystemProvider.readdir(folder.uri))
-      .filter(
-        ([f, type]) => type === FileType.File && /\/?\d+[^/]+\.sql$/.test(f),
-      )
-      .sort(([a], [b]) => a.localeCompare(b));
-    if (!paths.length) {
+    const uris = (await findFiles(folder.uri, ([f]) => /\/\d+[^/]+\.sql$/.test(f.path)))
+      .sort((a, b) => a.path.localeCompare(b.path));
+    if (!uris.length) {
       return vscode.window.showInformationMessage(
         "No migration files detected",
       );
     }
-    const uris = paths.map(([path]) => vscode.Uri.joinPath(folder.uri, path));
-    for (const f of uris) {
-      const raw = await vscode.workspace.fs.readFile(f);
-      const sql = new TextDecoder().decode(raw);
+    const files = await Promise.all(
+      uris.map(async f => {
+        const raw = await vscode.workspace.fs.readFile(f);
+        return new TextDecoder().decode(raw);
+      }),
+    );
+    for (const sql of files) {
       await vscode.commands.executeCommand(PGLITE_EXECUTE, sql);
     }
     vscode.commands.executeCommand(PGLITE_INTROSPECT);
-    vscode.window.showInformationMessage(`finished ${paths.length} migrations`);
+    vscode.window.showInformationMessage(`finished ${uris.length} migrations`);
   });
 
   vscode.commands.registerCommand(
@@ -485,6 +484,24 @@ void getApi().then(async vscode => {
 //     });
 //   }
 // }
+async function findFiles(
+  dir: vscode.Uri,
+  predicate?: (x: [f: vscode.Uri, type: vscode.FileType]) => boolean
+): Promise<vscode.Uri[]> {
+  const readdir = await vscode.workspace.fs.readDirectory(dir);
+  const files = [];
+  for (const [file, fileType] of readdir) {
+    const uri = vscode.Uri.joinPath(dir, file);
+    if (predicate && !predicate([uri, fileType])) continue;
+    if (fileType & vscode.FileType.Directory) {
+      const getDir = await findFiles(uri, predicate);
+      files.push(...getDir);
+    } else {
+      files.push(uri);
+    }
+  }
+  return files;
+}
 
 // FIXME: put this somewhere else
 const vscodeCss = `
