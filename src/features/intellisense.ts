@@ -27,7 +27,7 @@ void getApi().then(async api => {
   //   provideCallHierarchyIncomingCalls: function (): vscode.ProviderResult<vscode.CallHierarchyIncomingCall[]> {
   //     return [{
   //       from: {
-  //         name: 'Fake incomming call',
+  //         name: 'Fake incoming call',
   //         kind: api.SymbolKind.Class,
   //         uri: api.Uri.file('/workspace/test.js'),
   //         range: new api.Range(0, 0, 0, 10),

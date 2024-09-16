@@ -17,20 +17,11 @@ export default function getWorkspace() {
     files: {
       "/example.md": `
 \`\`\`sql
-delete from app_public.users;
-with make_user(id) as (
-  select id from app_private
-    .really_create_user('dfg', 'test@test.com', true, 'dfg', null)
-),
-make_session as (
-  insert into app_private.sessions (user_id) values ((select id from make_user)) returning *
-)
-select set_config('my.session_id', (select uuid from make_session)::text, true);
+begin;
+truncate app_public.users restart identity cascade;
+\`\`\`
 
-select * from app_public.create_post('Hello world', 'my hands are typing words', '{for,quick}', 'private');
-select * from app_public.create_post('testing', 'This is another test post with more unique words', '{Waltz,bad,nymph}', 'private');
-select * from app_public.create_post('sphinx of black quartz, judge my vow', 'The five boxing wizards jump quickly', '{test,jigs,vex}', 'private');
-
+\`\`\`sql
 with make_user(id) as (
   select id from app_private
     .really_create_user('alice', 'alice@test.com', true, 'alice', null)
@@ -40,34 +31,83 @@ make_session as (
 )
 select set_config('my.session_id', (select uuid from make_session)::text, true);
 
-select * from app_public.create_post('this is a test', 'my hands are typing words', '{secret}', 'private');
-select * from app_public.create_post('testing', 'This is another test post with more unique words', '{Waltz,bad,nymph}', 'private');
+select * from app_public.create_post('this is a test', 'my hands are typing words', 'private')
+union all
+select * from app_public.create_post('testing', 'This is another test post with more unique words', 'private');
 \`\`\`
 
+\`\`\`sql
+with make_user(id) as (
+  select id from app_private
+    .really_create_user('bob', 'bob@test.com', true, 'bob', null)
+),
+make_session as (
+  insert into app_private.sessions (user_id) values ((select id from make_user)) returning *
+)
+select set_config('my.session_id', (select uuid from make_session)::text, true);
+
+select * from app_public.create_post('Hello world', 'my hands are typing words', 'private')
+union all
+select * from app_public.create_post('testing', 'This is another test post with more unique words', 'private')
+union all
+select * from app_public.create_post('sphinx of black quartz, judge my vow', 'The five boxing wizards jump quickly', 'private');
+\`\`\`
+
+\`\`\`sql
+with make_user(id) as (
+  select id from app_private
+    .really_create_user('charlie', 'charlie@test.com', true, 'charlie', null)
+),
+make_session as (
+  insert into app_private.sessions (user_id) values ((select id from make_user)) returning *
+)
+select set_config('my.session_id', (select uuid from make_session)::text, true);
+
+select * from app_public.create_post('Hello world', 'my hands are typing words', 'private')
+union all
+select * from app_public.create_post('testing', 'This is another test post with more unique words', 'private')
+union all
+select * from app_public.create_post('sphinx of black quartz, judge my vow', 'The five boxing wizards jump quickly', 'private');
+\`\`\`
+
+\`\`\`sql
+select * from app_public.top_posts();
+\`\`\`
+
+\`\`\`sql
+rollback;
+\`\`\`
 `.trim(),
       "/00100-posts.sql": `
 create domain app_public.tag as text check (length(value) between 1 and 64);
 
 create type app_public.privacy as enum ('private', 'secret', 'public');
 
+create function app_hidden.array_regexp_matches (
+  input_string text,
+  pattern text
+) returns text[] as $$
+  select
+    coalesce(array_agg(match[1]), '{}')
+  from
+    regexp_matches(input_string, pattern, 'g') as m(match)
+$$ language sql immutable;
+
 create table app_public.posts (
   id int primary key generated always as identity (start 1000),
   user_id uuid not null default app_public.current_user_id() references app_public.users on delete cascade,
   title text not null check (length(title) between 1 and 140),
   body text not null check (length(body) between 1 and 2000),
-  tags app_public.tag[] not null check (array_length(tags, 1) between 1 and 5),
   privacy app_public.privacy not null default 'public',
-  search tsvector not null generated always as (
-    setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
-    setweight(to_tsvector('simple', coalesce(array_to_string_immutable(tags, ' '), '')), 'B') ||
-    setweight(to_tsvector('simple', coalesce(body, '')), 'C')
-  ) stored,
   created_at timestamptz not null default now(),
+  tags citext[] generated always as (app_hidden.array_regexp_matches(body, 'm(?<=#)[^[:digit:][:punct:]s]+M')) stored,
+  mentions citext[] generated always as (app_hidden.array_regexp_matches(body, 'm(?<=@)[a-zA-Z][a-zA-Z0-9_-]+M')) stored,
   updated_at timestamptz not null default now()
 );
 
 create index on app_public.posts (user_id);
 create index on app_public.posts using gin (tags);
+create index on app_public.posts using gin (mentions);
 create index on app_public.posts (created_at desc);
 
 alter table app_public.posts
@@ -94,6 +134,40 @@ create trigger _100_timestamps
   on app_public.posts
   for each row
 execute procedure app_private.tg__timestamps();
+
+---
+
+create or replace function app_hidden.array_to_string_immutable(text[], text)
+  returns text
+  language sql immutable parallel safe
+return array_to_string($1, $2);
+
+create table app_hidden.posts_vectors (
+  id int primary key references app_public.posts on delete cascade,
+  search tsvector not null
+);
+
+create function app_hidden.update_post_vectors() returns trigger as $$
+begin
+  insert into app_hidden.posts_vectors (id, search)
+  values (
+    new.id,
+    setweight(to_tsvector('english', coalesce(new.title, '')), 'A')
+    || setweight(to_tsvector('english', coalesce(app_hidden.array_to_string_immutable(new.tags, ' '), '')), 'B')
+    || setweight(to_tsvector('english', coalesce(new.body, '')), 'C')
+  )
+  on conflict (id) do update
+    set search = excluded.search;
+  return new;
+end;
+$$ language plpgsql volatile;
+
+create trigger _100_update_post_vectors
+  before insert or update on app_public.posts
+  for each row
+execute procedure app_hidden.update_post_vectors();
+
+---
 
 create type app_public.vote_type as enum ('spam', 'like', 'funny', 'love');
 
@@ -127,13 +201,14 @@ grant
   delete
   on app_public.posts_votes to appname_visitor;
 
+---
+
 create table app_public.comments (
   id uuid primary key default gen_random_uuid(),
   post_id int not null references app_public.posts on delete cascade,
   user_id uuid not null default app_public.current_user_id() references app_public.users on delete cascade,
   parent_id uuid references app_public.comments on delete cascade,
   body text not null,
-  search tsvector not null generated always as (to_tsvector('simple', body)) stored,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -172,7 +247,7 @@ create trigger _100_timestamps
 execute procedure app_private.tg__timestamps();
 `.trim(),
 
-      "/99999-fixtures.sql": `
+        "/workspace/migrations/current/99999-fixtures.sql": `
 create or replace function app_public.posts_current_user_voted(
   post app_public.posts
 ) returns app_public.vote_type as $$
@@ -196,21 +271,26 @@ create or replace view app_public.top_tags as
   order by
     count desc;
 
-create or replace function app_public.score_post(
-  id int
+create or replace function app_hidden.vote_map(
+  vote app_public.vote_type
 ) returns int as $$
-  select coalesce(sum(
-    case vote
-      when 'love' then 4
-      when 'funny' then 2
-      when 'like' then 1
-      when 'spam' then -1
-    end
-  ), 0)
+  select case vote
+    when 'love' then 4
+    when 'funny' then 2
+    when 'like' then 1
+    when 'spam' then -1
+  end
+$$ language sql immutable;
+
+create or replace function app_public.score_post(
+  p app_public.posts
+) returns int as $$
+  select
+    coalesce(sum(app_hidden.vote_map(vote)), 0)
   from
     app_public.posts_votes v
   where
-    post_id = score_post.id
+    post_id = p.id
 $$ language sql stable;
 
 create or replace function app_public.posts_popularity(
@@ -224,14 +304,13 @@ $$ language sql stable;
 create or replace function app_public.create_post(
   title text,
   body text,
-  tags app_public.tag[],
   privacy app_public.privacy default 'public'
 ) returns text as $$
   with create_post as (
     insert into app_public.posts
-      (title, body, tags, user_id)
+      (title, body, user_id)
     values
-      (create_post.title, create_post.body, create_post.tags, app_public.current_user_id())
+      (create_post.title, create_post.body, app_public.current_user_id())
     returning id
   ),
   self_vote as (
@@ -246,30 +325,30 @@ $$ language sql volatile security definer;
 create or replace function app_public.create_comment(
   post_id int,
   body text,
-  parent_id uuid
+  parent_id uuid default null
 ) returns uuid as $$
-  insert into app_public.comments (post_id, parent_id, body, user_id)
-  values (create_comment.post_id, create_comment.parent_id, create_comment.body, create_comment.user_id)
+  insert into app_public.comments (post_id, parent_id, body)
+  values (create_comment.post_id, create_comment.parent_id, create_comment.body)
   returning id
 $$ language sql volatile;
 
 create or replace function app_public.comment_count(
-  post_id int
+  p app_public.posts
 ) returns int as $$
   select
     count(1)
   from
     app_public.comments
   where
-    post_id = comment_count.post_id
+    post_id = p.id
 $$ language sql stable;
 
+drop type if exists app_public.post_info cascade;
 create type app_public.post_info as (
   post_id text,
   title text,
   body text,
   username text,
-  tags app_public.tag[],
   score int,
   comment_count int,
   created_at timestamptz,
@@ -284,7 +363,6 @@ create or replace function app_public.new_posts() returns setof app_public.post_
     title,
     body,
     username,
-    tags,
     score,
     comment_count,
     p.created_at,
@@ -295,8 +373,8 @@ create or replace function app_public.new_posts() returns setof app_public.post_
     app_public.posts p
     join app_public.users u on u.id = p.user_id
     left join app_public.posts_votes v on p.id = v.post_id and v.user_id = app_public.current_user_id(),
-    lateral app_public.score_post(p.id) as score,
-    lateral app_public.comment_count(p.id),
+    lateral app_public.score_post(p) as score,
+    lateral app_public.comment_count(p),
     lateral app_public.posts_popularity(score, p.created_at) as popularity
   order by
     p.created_at
@@ -308,7 +386,6 @@ create or replace function app_public.top_posts() returns setof app_public.post_
     title,
     body,
     username,
-    tags,
     score,
     comment_count,
     p.created_at,
@@ -319,8 +396,8 @@ create or replace function app_public.top_posts() returns setof app_public.post_
     app_public.posts p
     join app_public.users u on u.id = p.user_id
     left join app_public.posts_votes v on p.id = v.post_id and v.user_id = app_public.current_user_id(),
-    lateral app_public.score_post(p.id) score,
-    lateral app_public.comment_count(p.id),
+    lateral app_public.score_post(p) score,
+    lateral app_public.comment_count(p),
     lateral app_public.posts_popularity(score, p.created_at) as popularity
   order by
     popularity desc
@@ -334,7 +411,6 @@ create or replace function app_public.posts_with_tags(
     title,
     body,
     username,
-    tags,
     score,
     comment_count,
     p.created_at,
@@ -345,19 +421,19 @@ create or replace function app_public.posts_with_tags(
     app_public.posts p
     join app_public.users u on u.id = p.user_id
     left join app_public.posts_votes v on p.id = v.post_id and v.user_id = app_public.current_user_id(),
-    lateral app_public.score_post(p.id) score,
-    lateral app_public.comment_count(p.id),
+    lateral app_public.score_post(p) score,
+    lateral app_public.comment_count(p),
     lateral app_public.posts_popularity(score, p.created_at) as popularity
   where
-    tags && posts_with_tags.tags
+    tags::app_public.tag[] && posts_with_tags.tags
 $$ language sql stable security definer;
 
+drop type if exists app_public.search_results cascade;
 create type app_public.search_results as (
   post_id text,
   title text,
   body text,
   username text,
-  tags app_public.tag[],
   score int,
   comment_count int,
   created_at timestamptz,
@@ -375,7 +451,6 @@ create or replace function app_public.search_posts(
     ts_headline(title, q, 'StartSel = *, StopSel = *') as title,
     ts_headline(body, q, 'StartSel = *, StopSel = *') as body,
     username,
-    tags,
     score,
     comment_count,
     p.created_at,
@@ -384,11 +459,12 @@ create or replace function app_public.search_posts(
     v.vote,
     ts_rank(search, q) as rank
   from app_public.posts p
+    join app_hidden.posts_vectors using(id)
     join app_public.users u on u.id = p.user_id
     left join app_public.posts_votes v on p.id = v.post_id and v.user_id = app_public.current_user_id(),
     lateral websearch_to_tsquery(query) as q,
-    lateral app_public.score_post(p.id) as score,
-    lateral app_public.comment_count(p.id),
+    lateral app_public.score_post(p) as score,
+    lateral app_public.comment_count(p),
     lateral app_public.posts_popularity(score, p.created_at) as popularity
   where
     search @@ q
@@ -402,7 +478,6 @@ create or replace function app_public.users_posts(
     title,
     body,
     username,
-    tags,
     score,
     comment_count,
     p.created_at,
@@ -412,8 +487,8 @@ create or replace function app_public.users_posts(
   from app_public.posts p
     join app_public.users u on u.id = p.user_id
     left join app_public.posts_votes pv on pv.post_id = p.id and pv.user_id = app_public.current_user_id(),
-    lateral app_public.score_post(p.id) as score,
-    lateral app_public.comment_count(p.id),
+    lateral app_public.score_post(p) as score,
+    lateral app_public.comment_count(p),
     lateral app_public.posts_popularity(score, p.created_at) as popularity
   where
     u.username = users_posts.username
@@ -464,6 +539,8 @@ create schema app_public;
 create schema app_hidden;
 create schema app_private;
 
+create extension if not exists citext with schema public;
+
 -- The 'visitor' role (used to represent an end user) may access the
 -- public, app_public and app_hidden schemas (but _NOT_ the app_private schema).
 grant usage on schema public, app_public, app_hidden to appname_visitor;
@@ -480,11 +557,6 @@ alter default privileges in schema public, app_public, app_hidden
 /*
  * These are functions or triggers that are commonly used across many tables.
  */
-
-create or replace function array_to_string_immutable(text[], text)
-  returns text
-  language sql immutable parallel safe
-return array_to_string($1, $2);
 
 /*
  * This trigger is used on tables with created_at and updated_at to ensure that
@@ -556,43 +628,6 @@ alter table app_private.sessions
  * To allow us to efficiently see what sessions are open for a particular user.
  */
 
-create index on app_private.sessions (user_id);
-
----
-
-/*
- * The sessions table is used to track who is logged in, if there are any
- * restrictions on that session, when it was last active (so we know if it's
- * still valid), etc.
- *
- * In Starter we only have an extremely limited implementation of this, but you
- * could add things like "last_auth_at" to it so that you could track when they
- * last officially authenticated; that way if you have particularly dangerous
- * actions you could require them to log back in to allow them to perform those
- * actions. (GitHub does this when you attempt to change the settings on a
- * repository, for example.)
- *
- * The primary key is a cryptographically secure random uuid; the value of this
- * primary key should be secret, and only shared with the user themself. We
- * currently wrap this session in a webserver-level session (either using
- * redis, or using \`connect-pg-simple\` which uses the
- * \`connect_pg_simple_sessions\` table which we defined previously) so that we
- * don't even send the raw session id to the end user, but you might want to
- * consider exposing it for things such as mobile apps or command line
- * utilities that may not want to implement cookies to maintain a cookie
- * session.
- */
-
-create table app_private.sessions (
-  uuid uuid not null default gen_random_uuid() primary key,
-  user_id uuid not null,
-  -- You could add access restriction columns here if you want, e.g. for OAuth scopes.
-  created_at timestamptz not null default now(),
-  last_active timestamptz not null default now()
-);
-alter table app_private.sessions enable row level security;
-
--- To allow us to efficiently see what sessions are open for a particular user.
 create index on app_private.sessions (user_id);
 
 ---
@@ -758,7 +793,7 @@ $$ language sql stable security definer set search_path to pg_catalog, public, p
 create table app_public.user_emails (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default app_public.current_user_id() references app_public.users on delete cascade,
-  email text not null check (email ~ '[^@]+@[^@]+\.[^@]+'),
+  email text not null check (email ~ '[^@]+@[^@]+\\.[^@]+'),
   is_verified boolean not null default false,
   is_primary boolean not null default false,
   created_at timestamptz not null default now(),

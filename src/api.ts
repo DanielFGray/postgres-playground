@@ -1,7 +1,11 @@
 import { treaty } from "@elysiajs/eden";
-import { type App } from "~server/app";
+import type { App } from "~server/app";
 
-if (!import.meta.env.VITE_ROOT_URL) {
-  throw new Error("ROOT_URL environment variable is required");
+const root = import.meta.env.VITE_ROOT_URL;
+if (!root) {
+  throw new Error("VITE_ROOT_URL environment variable is required");
 }
-export const api = treaty<App>(import.meta.env.VITE_ROOT_URL.replace(/^https?:\/\//, '').concat("/api"));
+
+const url = new URL(root);
+
+export const api = treaty<App>(`${url.host}/api`);

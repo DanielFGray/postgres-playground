@@ -33,6 +33,10 @@ export class DatabaseExplorerProvider
     return element;
   }
 
+  getParent(element: Entity): vscode.ProviderResult<Entity> {
+    return element.parent;
+  }
+
   getChildren(parent?: Entity): Entity[] {
     if (!this.introspection) return [];
     if (!parent) {
@@ -202,7 +206,7 @@ export class DatabaseExplorerProvider
               id: `${parent.id}-functions`,
               kind: "functions",
               label: "functions",
-              icon: "symbol-namespace",
+              icon: "symbol-function",
               state: vscode.TreeItemCollapsibleState.Expanded,
             }),
           );
@@ -512,7 +516,7 @@ class Entity extends vscode.TreeItem {
     this.label = props.label;
     this.kind = props.kind;
     this.description = props.description;
-    this.iconPath = props.icon;
+    // this.iconPath = props.icon;
     this.collapsibleState = props.state;
   }
 }

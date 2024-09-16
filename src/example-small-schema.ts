@@ -16,6 +16,8 @@ export default function getWorkspace() {
     },
     files: {
       "/0001-example.sql": `
+select version();
+
 drop table if exists nums cascade;
 
 create table nums as
@@ -31,8 +33,6 @@ analyze;
 
 explain (analyze, buffers)
 select * from nums where (num % 2000) = 0;
-
-select version();
 `.trim(),
     },
   };

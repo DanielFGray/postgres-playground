@@ -44,6 +44,14 @@ export function zip<A, B>(a: Array<A>, b: Array<B>) {
   return result;
 }
 
+export function randomNumber(max: number): number
+export function randomNumber(min: number, max: number): number
+export function randomNumber(min: number, max?: number): number {
+  if (!max) [min, max] = [0, min]
+  if (min > max) [min, max] = [max, min];
+  return Math.floor(min + Math.random() * (max - min));
+}
+
 export function generateStr(
   length: number,
   characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -51,7 +59,7 @@ export function generateStr(
   let result = "";
   const charactersLength = characters.length;
   for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    result += characters.charAt(randomNumber(charactersLength));
   }
   return result;
 }
@@ -59,18 +67,20 @@ export function generateStr(
 /**
  * silly hack to enable syntax highlighting
  */
-export function templateHack<T>(
+export function templateHack(
+// export function templateHack<T extends string | number | boolean | { toString(): string }>(
   strings: TemplateStringsArray,
-  ...interpolations: Array<T>
+  // ...interpolations: Array<T>
 ) {
-  let result = "";
-  for (let i = 0; i < strings.length; i++) {
-    result += strings[i];
-    if (i < interpolations.length) {
-      result += interpolations[i];
-    }
-  }
-  return result;
+  return strings.join("");
+  // let result = "";
+  // for (let i = 0; i < strings.length; i++) {
+  //   result += strings[i];
+  //   if (i < interpolations.length) {
+  //     result += interpolations[i];
+  //   }
+  // }
+  // return result;
 }
 
 export function throttle<R, A extends any[]>(
@@ -82,7 +92,7 @@ export function throttle<R, A extends any[]>(
   let cancelled = false;
 
   return [
-    (...args: A) => {
+    function throttledFunction(...args: A) {
       if (cancelled) return undefined;
       if (wait) return undefined;
 
@@ -101,4 +111,12 @@ export function throttle<R, A extends any[]>(
       clearTimeout(timeout);
     },
   ];
+}
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function randomDelay(min = 100, max = 600) {
+  return sleep(Math.ceil(randomNumber(min, max)));
 }

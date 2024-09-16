@@ -1,18 +1,18 @@
 import * as vscode from "vscode";
 import * as db from "./pglite";
-import { ExtensionHostKind, registerExtension } from "vscode/extensions";
-import { DatabaseExplorerProvider } from "./introspection";
 import {
   registerCustomView,
   ViewContainerLocation,
 } from "@codingame/monaco-vscode-workbench-service-override";
-import { throttle } from "~lib/index";
+import { ExtensionHostKind, registerExtension } from "vscode/extensions";
 import getWorkspace from "~/example-small-schema";
 import { fileSystemProvider } from "~/fsProvider";
 import {
   FileType,
   RegisteredMemoryFile,
 } from "@codingame/monaco-vscode-files-service-override";
+import { DatabaseExplorerProvider } from "./introspection";
+import { throttle } from "~lib/index";
 import {
   PGLITE_RESET,
   PGLITE_EXECUTE,
@@ -23,6 +23,7 @@ import {
   WORKSPACE_PREFIX,
   ERD_SHOW,
   ERD_UPDATE,
+  // PLAYGROUND_INFO,
 } from "./constants";
 import { SQLNotebookExecutionController } from "./notebook/controller";
 import { SQLSerializer } from "./notebook/sql";
@@ -74,7 +75,7 @@ const { getApi } = registerExtension(
         {
           command: PGLITE_RESET,
           title: "Reset database",
-          icon: "notebook-revert",
+          icon: "trash",
         },
         {
           command: PGLITE_EXECUTE,
@@ -84,7 +85,7 @@ const { getApi } = registerExtension(
         {
           command: PGLITE_INTROSPECT,
           title: "Refresh introspection data",
-          icon: "extensions-refresh",
+          icon: "repo-sync",
         },
         {
           command: DATABASE_MIGRATE,
@@ -99,7 +100,7 @@ const { getApi } = registerExtension(
         {
           command: ERD_SHOW,
           title: "Show entity relationship diagram",
-          icon: "",
+          icon: "type-hierarchy",
         },
         {
           command: LATEST_POSTS,
@@ -143,7 +144,7 @@ const { getApi } = registerExtension(
       views: {
         explorer: [
           { id: DATABASE_EXPLORER, name: "Database", visibility: "visible" },
-          // { id: "playground-info", name: "Playground", type: "webview" },
+          // { id: PLAYGROUND_INFO, name: "Playground", type: "webview" },
         ],
       },
       viewsWelcome: [
@@ -162,53 +163,72 @@ const { getApi } = registerExtension(
 );
 
 // registerCustomView({
-//   id: "playground-info",
+//   id: PLAYGROUND_INFO,
 //   name: "Playground",
 //   canToggleVisibility: false,
 //   hideByDefault: false,
 //   default: true,
 //   collapsed: false,
 //   order: 0,
-//   renderBody(container: HTMLElement): monaco.IDisposable {
-//     container.style.display = "flex";
-//     container.style.flexDirection = "column";
-//     container.style.alignItems = "center";
-//     container.style.justifyContent = "center";
-//     container.style.height = "100%";
-
-//     const fragment = document.createDocumentFragment();
-
-//     const title = document.createElement("div");
-//     title.textContent = "playground title";
-//     fragment.appendChild(title);
-
-//     const description = document.createElement("div");
-//     description.textContent = "playground description";
-//     fragment.appendChild(description);
-
-//     container.appendChild(fragment);
-//     return {
-//       dispose() {},
-//     };
-//   },
 //   location: ViewContainerLocation.Sidebar,
-//   // TODO: add icon
 //   icon: new URL(
 //     "../Visual_Studio_Code_1.35_icon.svg",
 //     import.meta.url,
 //   ).toString(),
-//   // actions: [{
-//   //   id: "custom-action",
-//   //   title: "Custom action",
-//   //   icon: "dialogInfo",
-//   //   async run (accessor) {
-//   //     void accessor.get(IDialogService).info("This is a custom view action button")
-//   //   }
-//   // }]
+//   renderBody(container: HTMLElement): vscode.Disposable {
+//     container.style.display = "flex";
+//     container.style.flexDirection = "column";
+//     container.style.alignItems = "center";
+//     // container.style.justifyContent = "center";
+//     // container.style.height = "100%";
+
+//     const playground = {};
+//     const isOwner = me?.username === playground?.user?.username;
+
+//     const fragment = document.createDocumentFragment();
+//     if (playground?.id) {
+//       const name = document.createElement("h1");
+//       name.textContent = playground.name;
+//       if (isOwner) {
+//         name.contentEditable = "true";
+//       }
+//       fragment.appendChild(name);
+
+//       const description = document.createElement("div");
+//       description.textContent = playground.description;
+//       fragment.appendChild(description);
+//     }
+
+//     container.replaceChildren(fragment);
+//     return {
+//       dispose() {},
+//     };
+//   },
+//   actions: [
+//     // isOwner ?
+//     {
+//       id: "save-all",
+//       title: "Save Playground",
+//       icon: "saveAll",
+//       async run(accessor) {
+//         vscode.commands.executeCommand(SAVE_WORKSPACE);
+//         // void accessor.get(IDialogService).info("This is a custom view action button")
+//       },
+//     },
+//     // :
+//     {
+//       id: "fork",
+//       title: "fork",
+//       icon: "gistFork",
+//       async run(accessor) {
+//         vscode.commands.executeCommand(SAVE_WORKSPACE);
+//       },
+//     },
+//   ],
 // });
 
 void getApi().then(async vscode => {
-  const version = db.query<{ version: string }>("select version()");
+  window.vscode = vscode;
 
   vscode.workspace.registerNotebookSerializer(
     "markdown-notebook",
@@ -246,10 +266,17 @@ void getApi().then(async vscode => {
   });
 
   const pgliteOutputChannel = vscode.window.createOutputChannel("PGlite");
-  pgliteOutputChannel.appendLine("starting postgres");
-  // pgliteOutputChannel.show();
-  pgliteOutputChannel.appendLine((await version).rows[0]?.version);
-  pgliteOutputChannel.appendLine("Powered by @electric-sql/pglite");
+  new Promise<void>(res => {
+    pgliteOutputChannel.appendLine("starting postgres");
+    // pgliteOutputChannel.show();
+    db.query<{ version: string }>("select version()")
+      .then(version => {
+        pgliteOutputChannel.appendLine(version.rows[0]?.version);
+        pgliteOutputChannel.appendLine("Powered by @electric-sql/pglite");
+      })
+      .then(res)
+      .catch(console.error);
+  });
 
   const queryOpts = {};
 
@@ -273,9 +300,8 @@ void getApi().then(async vscode => {
       const sql = new TextDecoder().decode(raw);
       await vscode.commands.executeCommand(PGLITE_EXECUTE, sql);
     }
-    return vscode.window.showInformationMessage(
-      `finished ${paths.length} migrations`,
-    );
+    vscode.commands.executeCommand(PGLITE_INTROSPECT);
+    vscode.window.showInformationMessage(`finished ${paths.length} migrations`);
   });
 
   vscode.commands.registerCommand(
@@ -330,17 +356,13 @@ void getApi().then(async vscode => {
   }
   let erdPanel: vscode.WebviewPanel | undefined;
 
-  const [updateErd] = throttle(
-    async () => {
-      if (erdPanel) {
-        const erd = await getMermaidERD();
-        console.log(erd);
-        const { svg } = await mermaidRender(erd);
-        erdPanel.webview.html = svg;
-      }
-    },
-    200,
-  );
+  const [updateErd] = throttle(async () => {
+    if (erdPanel) {
+      const erd = await getMermaidERD();
+      const { svg } = await mermaidRender(erd);
+      erdPanel.webview.html = svg;
+    }
+  }, 200);
 
   vscode.commands.registerCommand(ERD_UPDATE, updateErd);
   vscode.commands.registerCommand(ERD_SHOW, () => {
@@ -394,8 +416,6 @@ void getApi().then(async vscode => {
     }
   });
 
-  vscode.commands.executeCommand(LATEST_POSTS);
-
   // vscode.languages.registerDocumentFormattingEditProvider("sql", {
   //   provideDocumentFormattingEdits(
   //     document: vscode.TextDocument,
@@ -426,16 +446,19 @@ void getApi().then(async vscode => {
   });
 
   const dbExplorer = new DatabaseExplorerProvider();
-  const [refreshIntrospection] = throttle(dbExplorer.refresh, 50);
-  vscode.commands.registerCommand(PGLITE_INTROSPECT, refreshIntrospection);
-  vscode.window.createTreeView(DATABASE_EXPLORER, {
+  const dbTreeView = vscode.window.createTreeView(DATABASE_EXPLORER, {
     treeDataProvider: dbExplorer,
+  });
+  const [refreshIntrospection] = throttle(dbExplorer.refresh, 50);
+  vscode.commands.registerCommand(PGLITE_INTROSPECT, () => {
+    refreshIntrospection();
+    dbTreeView.reveal(undefined, { expand: true });
   });
 });
 
 // const { data: me } = await api.me.get();
 // class PlaygroundSidebarView implements vscode.WebviewViewProvider {
-//   public static readonly id = "playground-info";
+//   public static readonly id = PLAYGROUND_INFO;
 
 //   async #getHtmlForWebview(webview: vscode.Webview) {
 //     const userInfo = me
@@ -463,6 +486,7 @@ void getApi().then(async vscode => {
 //   }
 // }
 
+// FIXME: put this somewhere else
 const vscodeCss = `
 :root {
   --container-paddding: 20px;

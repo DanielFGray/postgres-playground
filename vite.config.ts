@@ -4,6 +4,8 @@ import * as fs from "fs";
 import path from "path";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+const proxyTarget = `http://localhost:${process.env.PORT}`;
+
 export default defineConfig({
   build: {
     target: "esnext",
@@ -16,11 +18,11 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       "/auth": {
-        target: "http://localhost:8080",
+        target: proxyTarget,
         changeOrigin: true,
       },
       "/api": {
-        target: "http://localhost:8080",
+        target: proxyTarget,
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api/, ""),
       },

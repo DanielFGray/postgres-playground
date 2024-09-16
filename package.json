@@ -6,8 +6,8 @@
   "License": "MIT",
   "type": "module",
   "scripts": {
-    "dev:client": "vite --clearScreen false",
-    "dev:server": "bun --watch --no-clear-screen server/index.ts",
+    "dev:client": "bun -b vite --clearScreen false",
+    "dev:server": "bun --hot --no-clear-screen server/index.ts",
     "pre:dev": "bun ./scripts/dbStart.mjs",
     "dev": "run-p dev:client dev:server db:watch worker",
     "test:watch": "bun test --watch --no-clear-screen",
@@ -24,6 +24,8 @@
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --outfile=dist/server.js --sourcemap",
     "build:client": "vite build",
     "build": "run-s build:client",
+    "server:start": "bun server/index.ts",
+    "start": "run-s server:start worker",
     "preview": "vite preview",
     "env:init": "bun scripts/generateEnvFile.mjs",
     "gm": "bun -b graphile-migrate",
@@ -34,9 +36,9 @@
     "db:reset": "bun -b graphile-migrate reset --erase",
     "db:stop": "docker-compose stop db",
     "db:exec": "docker-compose exec db",
-    "db:setup": "run-s -s db:start db:init db:reset db:latest",
+    "db:setup": "run-s db:start db:init db:reset db:latest",
     "predev": "run-s -s db:start",
-    "setup": "NOCONFIRM=1 run-s -s env:init db:setup"
+    "setup": "NOCONFIRM=1 run-s env:init db:setup"
   },
   "dependencies": {
     "@codingame/monaco-vscode-accessibility-service-override": "^7.0.10",
@@ -129,7 +131,7 @@
     "@codingame/monaco-vscode-workbench-service-override": "^7.0.10",
     "@codingame/monaco-vscode-working-copy-service-override": "^7.0.10",
     "@codingame/monaco-vscode-workspace-trust-service-override": "^7.0.10",
-    "@electric-sql/pglite": "^0.2.4",
+    "@electric-sql/pglite": "^0.2.7",
     "@elysiajs/eden": "^1.1.1",
     "@lucia-auth/adapter-postgresql": "^3.1.2",
     "@octokit/webhooks": "^13.3.0",
@@ -143,6 +145,7 @@
     "html-to-text": "^9.0.5",
     "logestic": "^1.2.0",
     "lucia": "^3.2.0",
+    "mermaid": "^11.2.0",
     "mjml": "^4.15.3",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@7.0.10",
     "nodemailer": "^6.9.14",

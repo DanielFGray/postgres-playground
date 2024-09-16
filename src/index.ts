@@ -126,14 +126,6 @@ import {
 } from "./features/constants";
 import { fileSystemProvider } from "./fsProvider";
 
-const url = new URL(document.location.href);
-const params = url.searchParams;
-export const remoteAuthority = params.get("remoteAuthority") ?? undefined;
-export const connectionToken = params.get("connectionToken") ?? undefined;
-export const remotePath =
-  remoteAuthority != null ? (params.get("remotePath") ?? undefined) : undefined;
-
-window.history.replaceState({}, document.title, url.href);
 
 export const userDataProvider = await createIndexedDBProviders();
 
@@ -225,9 +217,7 @@ await Promise.all([
 ]);
 
 const constructOptions: IWorkbenchConstructionOptions = {
-  remoteAuthority,
   enableWorkspaceTrust: false,
-  connectionToken,
   windowIndicator: {
     label: "Postgres Playground",
     tooltip: "",
@@ -238,16 +228,7 @@ const constructOptions: IWorkbenchConstructionOptions = {
     async open() {
       return false;
     },
-    workspace:
-      remotePath == null
-        ? { workspaceUri: workspaceFile }
-        : {
-            folderUri: monaco.Uri.from({
-              scheme: "vscode-remote",
-              path: remotePath,
-              authority: remoteAuthority,
-            }),
-          },
+    workspace: { workspaceUri: workspaceFile },
   },
   developmentOptions: {
     logLevel: LogLevel.Info, // Default value
@@ -366,70 +347,21 @@ const commonServices: IEditorOverrideServices = {
       window.history.pushState(null, "", url.toString());
     },
     availableLanguages: [
-      {
-        locale: "en",
-        languageName: "English",
-      },
-      {
-        locale: "cs",
-        languageName: "Czech",
-      },
-      {
-        locale: "de",
-        languageName: "German",
-      },
-      {
-        locale: "es",
-        languageName: "Spanish",
-      },
-      {
-        locale: "fr",
-        languageName: "French",
-      },
-      {
-        locale: "it",
-        languageName: "Italian",
-      },
-      {
-        locale: "ja",
-        languageName: "Japanese",
-      },
-      {
-        locale: "ko",
-        languageName: "Korean",
-      },
-      {
-        locale: "pl",
-        languageName: "Polish",
-      },
-      {
-        locale: "pt-br",
-        languageName: "Portuguese (Brazil)",
-      },
-      {
-        locale: "qps-ploc",
-        languageName: "Pseudo Language",
-      },
-      {
-        locale: "ru",
-        languageName: "Russian",
-      },
-      {
-        locale: "tr",
-        languageName: "Turkish",
-      },
-      {
-        locale: "zh-hans",
-        languageName: "Chinese (Simplified)",
-      },
-      {
-        locale: "zh-hant",
-        languageName: "Chinese (Traditional)",
-      },
-      {
-        locale: "en",
-        languageName: "English",
-      },
+      { locale: "cs", languageName: "Czech" },
+      { locale: "de", languageName: "German", },
+      { locale: "en", languageName: "English" },
+      { locale: "es", languageName: "Spanish", },
+      { locale: "fr", languageName: "French", },
+      { locale: "it", languageName: "Italian", },
+      { locale: "ja", languageName: "Japanese", },
+      { locale: "ko", languageName: "Korean", },
+      { locale: "pl", languageName: "Polish", },
+      { locale: "pt-br", languageName: "Portuguese (Brazil)", },
+      { locale: "qps-ploc", languageName: "Pseudo Language", },
+      { locale: "ru", languageName: "Russian", },
+      { locale: "tr", languageName: "Turkish", },
+      { locale: "zh-hans", languageName: "Chinese (Simplified)", },
+      { locale: "zh-hant", languageName: "Chinese (Traditional)", },
     ],
   }),
   ...getSecretStorageServiceOverride(),

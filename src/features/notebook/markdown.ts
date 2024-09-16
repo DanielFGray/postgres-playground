@@ -61,7 +61,6 @@ interface ICodeBlockStart {
  */
 function parseCodeBlockStart(line: string): ICodeBlockStart | null {
   const match = line.match(/( {4}|\t)?```(\S*)/);
-  console.log(match);
   if (!match) return null;
   return {
     indentation: match[1],
@@ -89,7 +88,6 @@ export function parseMarkdown(content: string): RawNotebookCell[] {
       break;
     }
     const codeBlockMatch = parseCodeBlockStart(lines[i]!);
-    console.log({ line: lines[i], codeBlockMatch });
     if (codeBlockMatch) {
       parseCodeBlock(leadingWhitespace, codeBlockMatch);
     } else {

@@ -31,6 +31,7 @@ void getApi().then(async vscode => {
       modal: true,
     });
   });
+
   vscode.ai.registerRelatedInformationProvider(
     vscode.RelatedInformationType.CommandInformation,
     {

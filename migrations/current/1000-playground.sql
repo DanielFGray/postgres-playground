@@ -31,16 +31,12 @@ alter table app_public.playgrounds enable row level security;
 
 create policy select_own_and_public on app_public.playgrounds
  for select using (privacy = 'public' or user_id = app_public.current_user_id());
-
 create policy insert_own on app_public.playgrounds
   for insert with check (user_id = app_public.current_user_id());
-
 create policy update_own on app_public.playgrounds
   for update using (user_id = app_public.current_user_id());
-
 create policy delete_own on app_public.playgrounds
   for delete using (user_id = app_public.current_user_id());
-
 create policy manage_all_as_admin on app_public.playgrounds
   for all using (exists (
     select 1 from app_public.users

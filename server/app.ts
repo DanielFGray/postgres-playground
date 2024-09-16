@@ -3,7 +3,7 @@ import { Elysia, t } from "elysia";
 import { Logestic } from "logestic";
 import Postgres from "postgres";
 import { Lucia } from "lucia";
-import { templateHack as gql } from "~lib/index";
+import { templateHack as gql, randomNumber, sleep } from "~lib/index";
 import {
   GitHub,
   OAuth2RequestError,
@@ -134,7 +134,10 @@ export const app = new Elysia({
 })
   .use(Logestic.preset(isProd ? "common" : "fancy"))
   .derive(async ({ cookie }) => {
-    return await lucia.validateSession(cookie[lucia.sessionCookieName].value);
+    const { user, session } = await lucia.validateSession(
+      cookie[lucia.sessionCookieName].value,
+    );
+    return { user, session };
   })
   .post(
     "/register",
@@ -531,13 +534,17 @@ export const app = new Elysia({
 
       return await withAuthContext(session.id, async sql => {
         try {
-          const userData = Object.assign({ version: 1 }, body);
-          const dataForSql = sql.json(userData);
-          const [id] = await sql<{ id: string }[]>`
+          const data = { defaultLayout: body.defaultLayout, files: body.files };
+          const [{ id }] = await sql<{ id: number }[]>`
             insert into app_public.playgrounds
-              (data)
-            values
-              (${dataForSql})
+              (fork_id, privacy, name, description, data)
+            values (
+              ${body.fork_id ?? null},
+              ${body.privacy ?? "public"},
+              ${body.name ?? null},
+              ${body.description ?? null},
+              ${sql.json(Object.assign({ version: 1 }, data))}
+            )
             returning id;
           `;
           return id;
@@ -552,13 +559,42 @@ export const app = new Elysia({
     },
     {
       body: t.Object({
+        name: t.Optional(t.String()),
+        description: t.Optional(t.String()),
+        fork_id: t.Optional(t.Number()),
+        privacy: t.Optional(
+          t.Union([t.Literal("private"), t.Literal("public")]),
+        ),
+        defaultLayout: t.Optional(
+          t.Partial(
+            t.Object({
+              editors: t.Array(
+                t.Object({
+                  uri: t.String(),
+                  viewColumn: t.Number(),
+                }),
+              ),
+              layout: t.Object({
+                editors: t.Object({
+                  orientation: t.Number(),
+                  groups: t.Array(
+                    t.Object({
+                      size: t.Number(),
+                    }),
+                  ),
+                }),
+              }),
+            }),
+          ),
+        ),
+        // files: t.Files(),
         files: t.Record(t.String(), t.String()),
       }),
     },
   )
 
   .get(
-    "/u/:user",
+    "/user/:username",
     async ({ session, params }) => {
       return await withAuthContext(session?.id, async sql => {
         const playgrounds = await sql<
@@ -567,7 +603,7 @@ export const app = new Elysia({
             fork_id: number | null;
             name: string | null;
             description: string | null;
-            stars: string | null;
+            stars: number | null;
             created_at: Date;
           }[]
         >`
@@ -587,7 +623,7 @@ export const app = new Elysia({
               from app_public.playground_stars
             ) as get_stars
           where
-            username = ${params.user}
+            username = ${params.username}
           order by created_at desc
           fetch first 50 rows only;
         `;
@@ -598,26 +634,25 @@ export const app = new Elysia({
     },
     {
       params: t.Object({
-        user: t.String(),
+        username: t.String(),
       }),
     },
   )
 
   .get(
     "/playground/:id",
-    ({ params, session }) => {
-      return withAuthContext(session?.id, async sql => {
+    async ({ params, session, error }) => {
+      const data = await withAuthContext(session?.id, async sql => {
         const [playground] = await sql<
           {
             id: number;
             name: string | null;
-            privacy: "private" | "secret" | "public";
             created_at: Date;
             updated_at: Date;
             description: string | null;
+            user: { username: string };
+            fork_id: number | null;
             data: any;
-            user: { id: string; username: string };
-            fork: unknown | null;
           }[]
         >`
           select
@@ -627,25 +662,24 @@ export const app = new Elysia({
             p.created_at,
             p.updated_at,
             p.description,
-            p.data,
             json_build_object(
-              'id', u.id,
               'username', u.username
             ) as user,
-            to_json(fork) as fork
+            fork_id,
+            p.data
           from
             app_public.playgrounds p
             join app_public.users u
               on p.user_id = u.id
-            left join app_public.playgrounds fork
-              on fork.id = p.fork_id,
-          lateral app_public.get_fork(p) f
-          where f.id = ${params.id}::int;
+          where p.id = ${params.id}::int;
         `;
-        return { playground };
+        return playground;
       });
+      if (!data) return error(404, "playground not found");
+      // if (headers["accept"] === "application/json") return data;
+      return data;
     },
-    { params: t.Object({ id: t.String() }) },
+    { params: t.Object({ id: t.Number() }) },
   )
 
   .post(
@@ -671,6 +705,7 @@ const webhooks = new Webhooks({ secret: process.env.SECRET });
 
 export type App = typeof app;
 
-function randomDelay(min = 100, max = 600) {
-  return Bun.sleep(Math.ceil(min + Math.random() * (max - min)));
+
+async function randomDelay(min = 100, max = 600) {
+  await sleep(randomNumber(min, max));
 }

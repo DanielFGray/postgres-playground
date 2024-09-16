@@ -61,6 +61,7 @@ export async function reset() {
       uuid_ossp,
     },
   });
+  window.db = db
 }
 
 async function healthcheck() {
