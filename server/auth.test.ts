@@ -2,12 +2,12 @@ import { describe, it, expect, afterAll } from "bun:test";
 import Postgres from "postgres";
 import { treaty } from "@elysiajs/eden";
 import { generateStr } from "~lib/index";
-import { type App, lucia } from "~server/app";
+import { app as App, lucia } from "~server/app";
 import "./assertEnv";
 
-const { DATABASE_URL, PORT } = process.env;
+const { DATABASE_URL } = process.env;
 
-const app = treaty<App>(`http://localhost:${PORT}`);
+const app = treaty(App);
 
 const user = {
   username: `test_${generateStr(4)}`,
