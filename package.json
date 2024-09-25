@@ -43,7 +43,6 @@
   "dependencies": {
     "@codingame/monaco-vscode-accessibility-service-override": "^7.0.10",
     "@codingame/monaco-vscode-ai-service-override": "^7.0.10",
-    "@codingame/monaco-vscode-api": "npm:@codingame/monaco-vscode-api@7.0.10",
     "@codingame/monaco-vscode-authentication-service-override": "^7.0.10",
     "@codingame/monaco-vscode-base-service-override": "^7.0.10",
     "@codingame/monaco-vscode-chat-service-override": "^7.0.10",
@@ -155,6 +154,7 @@
     "postgres-semicolons": "^0.1.2",
     "sql-formatter": "^15.3.2",
     "sql-parser-cst": "^0.28.0",
+    "vscode": "npm:@codingame/monaco-vscode-api@7.0.10",
     "ws": "^8.18.0"
   },
   "devDependencies": {
@@ -164,7 +164,7 @@
     "@types/html-to-text": "~9.0.4",
     "@types/mjml": "~4.7.4",
     "@types/nodemailer": "~6.4.15",
-    "@types/vscode": "^1.91.0",
+    "@types/vscode": "^1.93.0",
     "@typescript-eslint/eslint-plugin": "^7.16.1",
     "@typescript-eslint/parser": "^7.16.1",
     "autoprefixer": "^10.4.19",
