@@ -93,12 +93,13 @@ function metadataFromQueries(sql: string) {
 }
 
 function statementFromQuery(query: string) {
-  const firstWords = query.slice(0, 30).split(/\s+/);
-  const statement = query.startsWith("create or replace")
+  const lowerQuery = query.toLowerCase();
+  const firstWords = lowerQuery.slice(0, 30).split(/\s+/);
+  const statement = lowerQuery.toLowerCase().startsWith("create or replace")
     ? [firstWords[0], firstWords[3]].join(" ").toUpperCase()
-    : query.startsWith("create") ||
-        query.startsWith("alter") ||
-        query.startsWith("drop")
+    : lowerQuery.startsWith("create") ||
+        lowerQuery.startsWith("alter") ||
+        lowerQuery.startsWith("drop")
       ? firstWords.slice(0, 2).join(" ").toUpperCase()
       : firstWords[0].toUpperCase();
   return statement;
