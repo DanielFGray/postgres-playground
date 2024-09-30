@@ -94,7 +94,7 @@ function metadataFromQueries(sql: string) {
 
 function statementFromQuery(query: string) {
   const firstWords = query.slice(0, 30).split(/\s+/);
-  const statement = query.startsWith("create or replace function")
+  const statement = query.startsWith("create or replace")
     ? [firstWords[0], firstWords[3]].join(" ").toUpperCase()
     : query.startsWith("create") ||
         query.startsWith("alter") ||
