@@ -182,6 +182,11 @@
   },
   "trustedDependencies": [
     "@launchql/protobufjs",
-    "postgres"
+    "cpu-features",
+    "cypress",
+    "esbuild",
+    "libpg-query",
+    "postgres",
+    "ssh2"
   ]
 }
