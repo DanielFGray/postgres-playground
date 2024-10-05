@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as db from "./pglite";
+import { IDisposable } from "monaco-editor";
 import {
   registerCustomView,
   ViewContainerLocation,
@@ -230,15 +231,21 @@ const { getApi } = registerExtension(
 void getApi().then(async vscode => {
   window.vscode = vscode;
 
-  vscode.workspace.registerNotebookSerializer(
-    "markdown-notebook",
-    new MarkdownSerializer(),
+  const subscriptions: IDisposable[] = [];
+
+  subscriptions.push(
+    vscode.workspace.registerNotebookSerializer(
+      "markdown-notebook",
+      new MarkdownSerializer(),
+    ),
   );
   new SQLNotebookExecutionController("markdown-notebook");
 
-  vscode.workspace.registerNotebookSerializer(
-    "sql-notebook",
-    new SQLSerializer(),
+  subscriptions.push(
+    vscode.workspace.registerNotebookSerializer(
+      "sql-notebook",
+      new SQLSerializer(),
+    ),
   );
 
   new SQLNotebookExecutionController("sql-notebook");
@@ -266,6 +273,7 @@ void getApi().then(async vscode => {
   });
 
   const pgliteOutputChannel = vscode.window.createOutputChannel("PGlite");
+  subscriptions.push(pgliteOutputChannel);
   new Promise<void>(res => {
     pgliteOutputChannel.appendLine("starting postgres");
     // pgliteOutputChannel.show();
@@ -280,66 +288,75 @@ void getApi().then(async vscode => {
 
   const queryOpts = {};
 
-  vscode.commands.registerCommand(DATABASE_MIGRATE, async function migrate() {
-    const folder = vscode.workspace.workspaceFolders?.[0];
-    if (!folder) return;
-    const uris = (await findFiles(folder.uri, ([f]) => /\/\d+[^/]+\.sql$/.test(f.path)))
-      .sort((a, b) => a.path.localeCompare(b.path));
-    if (!uris.length) {
-      return vscode.window.showInformationMessage(
-        "No migration files detected",
-      );
-    }
-    const files = await Promise.all(
-      uris.map(async f => {
-        const raw = await vscode.workspace.fs.readFile(f);
-        return new TextDecoder().decode(raw);
-      }),
-    );
-    for (const sql of files) {
-      await vscode.commands.executeCommand(PGLITE_EXECUTE, sql);
-    }
-    vscode.commands.executeCommand(PGLITE_INTROSPECT);
-    vscode.window.showInformationMessage(`finished ${uris.length} migrations`);
-  });
-
-  vscode.commands.registerCommand(
-    PGLITE_EXECUTE,
-    async function exec(sql: string) {
-      try {
-        const result = await db.exec(sql, queryOpts);
-        result.forEach(stmt => {
-          pgliteOutputChannel.appendLine(stmt.statement);
-        });
-        if (
-          result.some(r =>
-            ["CREATE", "ALTER", "DROP"].some(stmt =>
-              r.statement.startsWith(stmt),
-            ),
-          )
-        ) {
-          vscode.commands.executeCommand(PGLITE_INTROSPECT);
-          vscode.commands.executeCommand(ERD_UPDATE);
-        }
-        return result;
-      } catch (error) {
-        pgliteOutputChannel.appendLine(
-          `error: ${error.message ?? JSON.stringify(error)}`,
+  subscriptions.push(
+    vscode.commands.registerCommand(DATABASE_MIGRATE, async function migrate() {
+      const folder = vscode.workspace.workspaceFolders?.[0];
+      if (!folder) return;
+      const uris = (
+        await findFiles(folder.uri, ([f]) => /\/\d+[^/]+\.sql$/.test(f.path))
+      ).sort((a, b) => a.path.localeCompare(b.path));
+      if (!uris.length) {
+        return vscode.window.showInformationMessage(
+          "No migration files detected",
         );
-        return [{ error }];
       }
-    },
+      const files = await Promise.all(
+        uris.map(async f => {
+          const raw = await vscode.workspace.fs.readFile(f);
+          return new TextDecoder().decode(raw);
+        }),
+      );
+      for (const sql of files) {
+        await vscode.commands.executeCommand(PGLITE_EXECUTE, sql);
+      }
+      vscode.commands.executeCommand(PGLITE_INTROSPECT);
+      vscode.window.showInformationMessage(
+        `finished ${uris.length} migrations`,
+      );
+    }),
   );
 
-  vscode.commands.registerCommand(PGLITE_RESET, async function reset() {
-    pgliteOutputChannel.replace("restarting postgres\n");
-    await db.reset();
-    vscode.commands.executeCommand(PGLITE_INTROSPECT);
-    const {
-      rows: [{ version }],
-    } = await db.query<{ version: string }>("select version()");
-    pgliteOutputChannel.appendLine(version);
-  });
+  subscriptions.push(
+    vscode.commands.registerCommand(
+      PGLITE_EXECUTE,
+      async function exec(sql: string) {
+        try {
+          const result = await db.exec(sql, queryOpts);
+          result.forEach(stmt => {
+            pgliteOutputChannel.appendLine(stmt.statement);
+          });
+          if (
+            result.some(r =>
+              ["CREATE", "ALTER", "DROP"].some(stmt =>
+                r.statement.startsWith(stmt),
+              ),
+            )
+          ) {
+            vscode.commands.executeCommand(PGLITE_INTROSPECT);
+            vscode.commands.executeCommand(ERD_UPDATE);
+          }
+          return result;
+        } catch (error) {
+          pgliteOutputChannel.appendLine(
+            `error: ${error.message ?? JSON.stringify(error)}`,
+          );
+          return [{ error }];
+        }
+      },
+    ),
+  );
+
+  subscriptions.push(
+    vscode.commands.registerCommand(PGLITE_RESET, async function reset() {
+      pgliteOutputChannel.replace("restarting postgres\n");
+      await db.reset();
+      vscode.commands.executeCommand(PGLITE_INTROSPECT);
+      const {
+        rows: [{ version }],
+      } = await db.query<{ version: string }>("select version()");
+      pgliteOutputChannel.appendLine(version);
+    }),
+  );
 
   function createErdPanel() {
     return vscode.window.createWebviewPanel(
@@ -363,12 +380,14 @@ void getApi().then(async vscode => {
     }
   }, 200);
 
-  vscode.commands.registerCommand(ERD_UPDATE, updateErd);
-  vscode.commands.registerCommand(ERD_SHOW, () => {
-    if (!erdPanel) erdPanel = createErdPanel();
-    updateErd();
-    erdPanel.reveal();
-  });
+  subscriptions.push(vscode.commands.registerCommand(ERD_UPDATE, updateErd));
+  subscriptions.push(
+    vscode.commands.registerCommand(ERD_SHOW, () => {
+      if (!erdPanel) erdPanel = createErdPanel();
+      updateErd();
+      erdPanel.reveal();
+    }),
+  );
 
   function createLatestPostsPanel() {
     return vscode.window.createWebviewPanel(
@@ -406,14 +425,16 @@ void getApi().then(async vscode => {
     yield `<table>${posts.join("")}</table>`;
   }
 
-  vscode.commands.registerCommand(LATEST_POSTS, async () => {
-    if (latestPanel) latestPanel.dispose();
-    latestPanel = createLatestPostsPanel();
-    latestPanel.reveal();
-    for await (const html of renderLatestPosts()) {
-      latestPanel.webview.html = html;
-    }
-  });
+  subscriptions.push(
+    vscode.commands.registerCommand(LATEST_POSTS, async () => {
+      if (latestPanel) latestPanel.dispose();
+      latestPanel = createLatestPostsPanel();
+      latestPanel.reveal();
+      for await (const html of renderLatestPosts()) {
+        latestPanel.webview.html = html;
+      }
+    }),
+  );
 
   // vscode.languages.registerDocumentFormattingEditProvider("sql", {
   //   provideDocumentFormattingEdits(
@@ -440,19 +461,24 @@ void getApi().then(async vscode => {
   //   new PlaygroundSidebarView(),
   // );
 
-  vscode.commands.registerCommand("github-login", async () => {
-    window.location.href = "/auth/github";
-  });
+  subscriptions.push(
+    vscode.commands.registerCommand("github-login", async () => {
+      window.location.href = "/auth/github";
+    }),
+  );
 
   const dbExplorer = new DatabaseExplorerProvider();
   const dbTreeView = vscode.window.createTreeView(DATABASE_EXPLORER, {
     treeDataProvider: dbExplorer,
   });
+  subscriptions.push(dbTreeView);
   const [refreshIntrospection] = throttle(dbExplorer.refresh, 50);
-  vscode.commands.registerCommand(PGLITE_INTROSPECT, () => {
-    refreshIntrospection();
-    dbTreeView.reveal(undefined, { expand: true });
-  });
+  subscriptions.push(
+    vscode.commands.registerCommand(PGLITE_INTROSPECT, () => {
+      refreshIntrospection();
+      dbTreeView.reveal(undefined, { expand: true });
+    }),
+  );
 });
 
 // const { data: me } = await api.me.get();
