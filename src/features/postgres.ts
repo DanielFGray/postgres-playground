@@ -75,37 +75,37 @@ const { getApi } = registerExtension(
         {
           command: PGLITE_RESET,
           title: "Reset database",
-          icon: "trash",
+          icon: "$(trash)",
         },
         {
           command: PGLITE_EXECUTE,
           title: "Execute SQL",
-          icon: "notebook-execute",
+          icon: "$(notebook-execute)",
         },
         {
           command: PGLITE_INTROSPECT,
           title: "Refresh introspection data",
-          icon: "repo-sync",
+          icon: "$(repo-sync)",
         },
         {
           command: DATABASE_MIGRATE,
           title: "Run migrations",
-          icon: "run-all",
+          icon: "$(run-all)",
         },
         {
           command: "github-login",
           title: "Login with GitHub",
-          icon: "github",
+          icon: "$(github)",
         },
         {
           command: ERD_SHOW,
           title: "Show entity relationship diagram",
-          icon: "type-hierarchy",
+          icon: "$(type-hierarchy)",
         },
         {
           command: LATEST_POSTS,
           title: "Latest Posts",
-          icon: "clock",
+          icon: "$(clock)",
         },
       ],
       menus: {
