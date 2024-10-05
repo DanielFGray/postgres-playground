@@ -15,6 +15,7 @@ import { PostgresJsAdapter } from "@lucia-auth/adapter-postgresql";
 import { ElysiaCookie } from "node_modules/elysia/dist/cookies";
 import "./assertEnv";
 import { getWorker } from "./worker";
+import type { Nullable } from "~/types.d";
 
 type User = {
   id: string;
@@ -22,7 +23,7 @@ type User = {
   name: string | null;
   avatar_url: string | null;
   bio: string | null;
-  role: "user" | "sponsor" | "admin";
+  role: "user" | "sponsor" | "pro" | "admin";
   is_verified: boolean;
   created_at: Date;
   updated_at: Date;
@@ -145,19 +146,7 @@ export const app = new Elysia({
       if (currentUser) return error(403, "already authenticated");
       const { username, email, password } = body;
       try {
-        const [user] = await sql<
-          {
-            id: string | null;
-            username: string | null;
-            name: string | null;
-            avatar_url: string | null;
-            bio: string | null;
-            role: "user" | "sponsor" | "pro" | "admin" | null;
-            is_verified: boolean | null;
-            created_at: Date | null;
-            updated_at: Date | null;
-          }[]
-        >`
+        const [user] = await sql<Nullable<User>[]>`
           select u.* from app_private.really_create_user(
             username => ${username}::citext,
             email => ${email}::citext,
@@ -196,19 +185,7 @@ export const app = new Elysia({
       const { id, password } = body;
 
       try {
-        const [user] = await sql<
-          {
-            id: string | null;
-            username: string | null;
-            name: string | null;
-            avatar_url: string | null;
-            bio: string | null;
-            role: "user" | "sponsor" | "pro" | "admin" | null;
-            is_verified: boolean | null;
-            created_at: Date | null;
-            updated_at: Date | null;
-          }[]
-        >`
+        const [user] = await sql<Nullable<User>[]>`
           select u.* from app_private.login(${id}::citext, ${password}) u
           where not (u is null)
         `;
@@ -303,19 +280,8 @@ export const app = new Elysia({
               })
             ).json();
             console.log(JSON.stringify(userInformation, null, 2));
-            [linkUser] = await sql<
-              {
-                id: string | null;
-                username: string | null;
-                name: string | null;
-                avatar_url: string | null;
-                bio: string | null;
-                role: "user" | "sponsor" | "pro" | "admin" | null;
-                is_verified: boolean | null;
-                created_at: Date | null;
-                updated_at: Date | null;
-              }[]
-            >`select * from app_private.link_or_register_user(
+            [linkUser] = await sql<Nullable<User>[]>`
+              select * from app_private.link_or_register_user(
                 f_user_id => ${currentUser?.id ?? null}::uuid,
                 f_service => ${params.provider as string},
                 f_identifier => ${userInformation.id}::text,
@@ -603,7 +569,7 @@ export const app = new Elysia({
             fork_id: number | null;
             name: string | null;
             description: string | null;
-            stars: number | null;
+            stars: string | null;
             created_at: Date;
           }[]
         >`
@@ -647,6 +613,7 @@ export const app = new Elysia({
           {
             id: number;
             name: string | null;
+            privacy: "private" | "secret" | "public";
             created_at: Date;
             updated_at: Date;
             description: string | null;
@@ -704,7 +671,6 @@ export const app = new Elysia({
 const webhooks = new Webhooks({ secret: process.env.SECRET });
 
 export type App = typeof app;
-
 
 async function randomDelay(min = 100, max = 600) {
   await sleep(randomNumber(min, max));

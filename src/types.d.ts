@@ -19,7 +19,9 @@ declare module "*?raw" {
   export default content;
 }
 
-type Prettify<T> = { [K in keyof T]: T[K] };
+type Prettify<T> = { [K in keyof T]: T[K] } & {};
+
+type Nullable<T> = { [K in keyof T]: T[K] | null };
 
 declare type Results<T> = Prettify<
   { query: string; statement: string } & PgliteResults<T>
