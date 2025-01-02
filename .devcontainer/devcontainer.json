@@ -1,0 +1,20 @@
+{
+    "image": "mcr.microsoft.com/vscode/devcontainers/base",
+    "features": {
+      "ghcr.io/audacioustux/devcontainers/bun:1": {}
+    },
+    "forwardPorts": [5173],
+    "portsAttributes": {
+      "5173": {
+        "label": "App"
+      }
+    },
+    "customizations": {
+      "vscode": {
+        "extensions": [
+            "oven.bun-vscode",
+            "ms-azuretools.vscode-docker"
+        ]
+      }
+    }
+  }
