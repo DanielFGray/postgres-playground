@@ -1,30 +1,32 @@
-import postgres from "postgres";
+// @ts-check
+import pg from "pg";
 import runAll from "npm-run-all";
+import "dotenv/config";
 
-export async function dbTest({
-  minDelay = 50,
-  maxTries = Infinity,
-  maxDelay = 30000,
-  verbose = true,
-} = {}) {
-  const sql = postgres(process.env.DATABASE_URL, {
-    connect_timeout: 3,
+/** @param {string} url */
+export async function dbTest(
+  url,
+  { minDelay = 50, maxTries = Infinity, maxDelay = 30000, verbose = true } = {},
+) {
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: 3000,
   });
 
   let attempts = 0;
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      const result = await sql`select true as "test"`;
+      const { rows: result } = await pool.query('select true as "test"');
       if (result[0].test === true) break;
     } catch (e) {
       if (e.code === "28P01") {
-        sql.end();
+        await pool.end();
         throw e;
       }
       attempts++;
       if (attempts > maxTries) {
-        sql.end();
+        await pool.end();
         throw e;
       }
       if (verbose)
@@ -35,10 +37,10 @@ export async function dbTest({
         Math.floor((minDelay * 1.8 ** attempts) / 2),
         maxDelay,
       );
-      await Bun.sleep(delay);
+      await new Promise(res => setTimeout(() => res(), delay));
     }
   }
-  sql.end();
+  pool.end();
   return true;
 }
 
@@ -49,8 +51,17 @@ const runAllOpts = {
   silent: true,
 };
 
-runAll(["db:start"], runAllOpts)
-  .then(() =>
-    dbTest({ maxTries: 5 }).catch(() => runAll(["setup"], runAllOpts)),
-  )
-  .catch(console.error);
+try {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not set");
+  }
+
+  await runAll(["db:start"], runAllOpts);
+  await dbTest(process.env.DATABASE_URL, {
+    maxTries: 8,
+    verbose: false,
+  });
+} catch (e) {
+  console.error(e.message);
+  runAll(["setup"], runAllOpts).catch(console.error);
+}

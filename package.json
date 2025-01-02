@@ -8,7 +8,7 @@
   "scripts": {
     "dev:client": "bun -b vite --clearScreen false",
     "dev:server": "bun --hot --no-clear-screen server/index.ts",
-    "pre:dev": "bun ./scripts/dbStart.mjs",
+    "predev": "bun ./scripts/dbStart.mjs",
     "dev": "run-p dev:client dev:server db:watch worker",
     "test:watch": "bun test --watch --no-clear-screen",
     "test:units": "bun test",
@@ -37,7 +37,6 @@
     "db:stop": "docker-compose stop db",
     "db:exec": "docker-compose exec db",
     "db:setup": "run-s db:start db:init db:reset db:latest",
-    "predev": "run-s -s db:start",
     "setup": "NOCONFIRM=1 run-s env:init db:setup"
   },
   "dependencies": {

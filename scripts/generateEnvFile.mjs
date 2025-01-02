@@ -1,3 +1,4 @@
+// @ts-check
 import path from "node:path";
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
@@ -5,6 +6,7 @@ import dotenv from "dotenv";
 import inquirer from "inquirer";
 
 const DOTENV_PATH = path.resolve(".env");
+const NOCONFIRM = Boolean(process.env.NOCONFIRM);
 
 /** validates database name
  * @param {string} str database name
@@ -14,6 +16,10 @@ function validName(str) {
   if (str.length < 4) return "must be at least 4 characters";
   if (str !== str.toLowerCase()) return "must be lowercase";
   return true;
+}
+
+function normalize(name) {
+  return name.replace(/\W/g, "_").replace(/__+/g, "").replace(/^_/, "");
 }
 
 /** generates a password
@@ -37,14 +43,29 @@ async function readDotenv() {
  * @param {null | Record<string,string | undefined>} config current environment object
  * @returns {Promise<void>} void
  */
-async function createConfig(config) {
+async function main() {
+  const config = await readDotenv();
   const packageJson = JSON.parse(await fs.readFile("./package.json", "utf8"));
-  const packageName = (
-    packageJson?.name || import.meta.dirname.split("/").at(-1)
-  )
-    .replace(/\W/g, "_")
-    .replace(/__+/g, "")
-    .replace(/^_/, "");
+  const projectName =
+    packageJson?.projectName ||
+    normalize(packageJson?.name || import.meta.dirname.split("/").at(-1));
+
+  const defaults = {
+    ROOT_DATABASE_USER: "postgres",
+    DATABASE_PORT: "5432",
+    DATABASE_HOST: "localhost",
+    DATABASE_NAME: projectName,
+    DATABASE_OWNER: projectName,
+    DATABASE_VISITOR: `${projectName}_visitor`,
+    DATABASE_AUTHENTICATOR: `${projectName}_authenticator`,
+    PORT: "3000",
+    VITE_ROOT_URL: "http://localhost:5173",
+    ROOT_DATABASE_PASSWORD: generatePassword(18),
+    DATABASE_OWNER_PASSWORD: generatePassword(18),
+    DATABASE_AUTHENTICATOR_PASSWORD: generatePassword(18),
+    SHADOW_DATABASE_PASSWORD: generatePassword(18),
+    SECRET: generatePassword(32),
+  };
 
   if (
     config &&
@@ -63,7 +84,7 @@ async function createConfig(config) {
     config.ROOT_DATABASE_PASSWORD &&
     config.ROOT_DATABASE_URL &&
     config.ROOT_DATABASE_USER &&
-    config.ROOT_URL &&
+    config.VITE_ROOT_URL &&
     config.SECRET &&
     config.SHADOW_DATABASE_PASSWORD &&
     config.SHADOW_DATABASE_URL
@@ -81,7 +102,7 @@ async function createConfig(config) {
     DATABASE_AUTHENTICATOR,
     DATABASE_VISITOR,
     PORT,
-    ROOT_URL,
+    VITE_ROOT_URL,
   } = await inquirer.prompt(
     [
       {
@@ -105,7 +126,7 @@ async function createConfig(config) {
       {
         name: "DATABASE_NAME",
         message: "database name:",
-        default: packageName,
+        default: projectName,
         validate: validName,
         prefix: "",
       },
@@ -129,79 +150,60 @@ async function createConfig(config) {
       },
       {
         name: "PORT",
-        message: "application port:",
+        message: "server port:",
         default: "3000",
         prefix: "",
       },
       {
-        name: "ROOT_URL",
+        name: "VITE_ROOT_URL",
         message: "application url:",
-        default: prompt => `http://localhost:${prompt.PORT}`,
+        default: "http://localhost:5173",
         prefix: "",
       },
     ],
-    Object.assign({}, config, process.env),
+    Object.assign({}, config, NOCONFIRM ? defaults : {}, process.env),
   );
 
-  let PASSWORDS = {
-    ROOT_DATABASE_PASSWORD: config?.ROOT_DATABASE_PASSWORD,
-    DATABASE_OWNER_PASSWORD: config?.DATABASE_OWNER_PASSWORD,
-    DATABASE_AUTHENTICATOR_PASSWORD: config?.DATABASE_AUTHENTICATOR_PASSWORD,
-    SHADOW_DATABASE_PASSWORD: config?.SHADOW_DATABASE_PASSWORD,
-    SECRET: config?.SECRET,
-  };
-
-  if (!Object.values(PASSWORDS).every(Boolean)) {
-    PASSWORDS = (
-      await inquirer.prompt({
-        name: "genpwd",
-        message: "auto-generate passwords?",
-        type: "confirm",
+  const { genpwd } = await inquirer.prompt(
+    {
+      name: "genpwd",
+      message: "auto-generate passwords?",
+      type: "confirm",
+      prefix: "",
+    },
+    NOCONFIRM ? { genpwd: NOCONFIRM } : {},
+  );
+  const PASSWORDS = await inquirer.prompt(
+    [
+      {
+        name: "ROOT_DATABASE_PASSWORD",
+        default: () => generatePassword(18),
         prefix: "",
-      })
-    ).genpwd
-      ? {
-          ROOT_DATABASE_PASSWORD:
-            config?.ROOT_DATABASE_PASSWORD ?? generatePassword(18),
-          DATABASE_OWNER_PASSWORD:
-            config?.DATABASE_OWNER_PASSWORD ?? generatePassword(18),
-          DATABASE_AUTHENTICATOR_PASSWORD:
-            config?.DATABASE_AUTHENTICATOR_PASSWORD ?? generatePassword(18),
-          SHADOW_DATABASE_PASSWORD:
-            config?.SHADOW_DATABASE_PASSWORD ?? generatePassword(18),
-          SECRET: config?.SECRET ?? generatePassword(32),
-        }
-      : await inquirer.prompt(
-          [
-            {
-              name: "ROOT_DATABASE_PASSWORD",
-              default: () => generatePassword(18),
-              prefix: "",
-            },
-            {
-              name: "DATABASE_OWNER_PASSWORD",
-              default: () => generatePassword(18),
-              prefix: "",
-            },
-            {
-              name: "DATABASE_AUTHENTICATOR_PASSWORD",
-              default: () => generatePassword(18),
-              prefix: "",
-            },
-            {
-              name: "SHADOW_DATABASE_PASSWORD",
-              default: () => generatePassword(18),
-              prefix: "",
-            },
-            {
-              name: "SECRET (used for signing tokens)",
-              default: () => generatePassword(32),
-              prefix: "",
-            },
-          ],
-          PASSWORDS,
-        );
-  }
+      },
+      {
+        name: "DATABASE_OWNER_PASSWORD",
+        default: () => generatePassword(18),
+        prefix: "",
+      },
+      {
+        name: "DATABASE_AUTHENTICATOR_PASSWORD",
+        default: () => generatePassword(18),
+        prefix: "",
+      },
+      {
+        name: "SHADOW_DATABASE_PASSWORD",
+        default: () => generatePassword(18),
+        prefix: "",
+      },
+      {
+        name: "SECRET",
+        message: "SECRET (used for signing tokens)",
+        default: () => generatePassword(32),
+        prefix: "",
+      },
+    ].map(spec => ({ ...spec, message: spec.message ?? spec.name })),
+    Object.assign({}, config, genpwd || NOCONFIRM ? defaults : {}, process.env),
+  );
 
   const envFile = Object.entries({
     ...config,
@@ -223,7 +225,7 @@ async function createConfig(config) {
     DATABASE_VISITOR: DATABASE_VISITOR,
     SECRET: PASSWORDS.SECRET,
     PORT,
-    ROOT_URL,
+    VITE_ROOT_URL,
   })
     .map(([k, v]) => `${k}=${v}`)
     .join("\n")
@@ -231,10 +233,7 @@ async function createConfig(config) {
 
   await fs.writeFile(DOTENV_PATH, envFile, "utf8");
   console.log(`.env file ${config ? "updated" : "created"}`);
-}
-
-async function main() {
-  createConfig(await readDotenv());
+  process.exit(0); // FIXME: why??
 }
 
 main();
