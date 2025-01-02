@@ -19,7 +19,7 @@ const envSchema = z.object({
   DATABASE_VISITOR: z.string(),
   SECRET: z.string(),
   PORT: z.string(),
-  ROOT_URL: z.string(),
+  VITE_ROOT_URL: z.string(),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
   GITHUB_PAT: z.string().optional(),
