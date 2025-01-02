@@ -1,7 +1,9 @@
 {
     "image": "mcr.microsoft.com/vscode/devcontainers/base",
     "features": {
-      "ghcr.io/audacioustux/devcontainers/bun:1": {}
+      "ghcr.io/audacioustux/devcontainers/bun:1": {},
+      "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+      "ghcr.io/devcontainers/features/python:1": {}
     },
     "forwardPorts": [5173],
     "portsAttributes": {
