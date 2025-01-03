@@ -167,7 +167,6 @@
     "@typescript-eslint/parser": "^7.16.1",
     "autoprefixer": "^10.4.19",
     "browserslist": "^4.23.2",
-    "cypress": "^13.13.1",
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-jsx-a11y": "^6.9.0",
@@ -179,7 +178,6 @@
   },
   "trustedDependencies": [
     "cpu-features",
-    "cypress",
     "esbuild",
     "postgres",
     "ssh2"
