@@ -1,8 +1,6 @@
-# Postgres Playground
+# [Postgres Garden](https://postgres.garden)
 
 a postgres IDE for your browser
-
-https://postgres-playground.dfg.codes
 
 ## contributing
 
