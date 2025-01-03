@@ -100,6 +100,7 @@ import getSurveyServiceOverride from "@codingame/monaco-vscode-survey-service-ov
 import getUpdateServiceOverride from "@codingame/monaco-vscode-update-service-override";
 import getExplorerServiceOverride from "@codingame/monaco-vscode-explorer-service-override";
 import getLocalizationServiceOverride from "@codingame/monaco-vscode-localization-service-override";
+import getTreeSitterServiceOverride from "@codingame/monaco-vscode-treesitter-service-override";
 import { EnvironmentOverride } from "vscode/workbench";
 import { Worker } from "./tools/crossOriginWorker";
 import defaultKeybindings from "./user/keybindings.json?raw";
@@ -125,7 +126,6 @@ import {
   WORKSPACE_PREFIX as workspacePrefix,
 } from "./features/constants";
 import { fileSystemProvider } from "./fsProvider";
-
 
 export const userDataProvider = await createIndexedDBProviders();
 
@@ -153,12 +153,12 @@ registerFileSystemOverlay(1, fileSystemProvider);
 // Workers
 export type WorkerLoader = () => Worker;
 const workerLoaders: Partial<Record<string, WorkerLoader>> = {
-  editorWorkerService: () =>
+  TextEditorWorker: () =>
     new Worker(
       new URL("monaco-editor/esm/vs/editor/editor.worker.js", import.meta.url),
-      { type: "module" },
+      { type: "module", },
     ),
-  textMateWorker: () =>
+  TextMateWorker: () =>
     new Worker(
       new URL(
         "@codingame/monaco-vscode-textmate-service-override/worker",
@@ -166,7 +166,7 @@ const workerLoaders: Partial<Record<string, WorkerLoader>> = {
       ),
       { type: "module" },
     ),
-  outputLinkComputer: () =>
+  OutputLinkDetectionWorker: () =>
     new Worker(
       new URL(
         "@codingame/monaco-vscode-output-service-override/worker",
@@ -174,7 +174,7 @@ const workerLoaders: Partial<Record<string, WorkerLoader>> = {
       ),
       { type: "module" },
     ),
-  languageDetectionWorkerService: () =>
+  LanguageDetectionWorker: () =>
     new Worker(
       new URL(
         "@codingame/monaco-vscode-language-detection-worker-service-override/worker",
@@ -182,7 +182,7 @@ const workerLoaders: Partial<Record<string, WorkerLoader>> = {
       ),
       { type: "module" },
     ),
-  notebookEditorWorkerService: () =>
+  NotebookEditorWorker: () =>
     new Worker(
       new URL(
         "@codingame/monaco-vscode-notebook-service-override/worker",
@@ -190,7 +190,7 @@ const workerLoaders: Partial<Record<string, WorkerLoader>> = {
       ),
       { type: "module" },
     ),
-  localFileSearchWorker: () =>
+  LocalFileSearchWorker: () =>
     new Worker(
       new URL(
         "@codingame/monaco-vscode-search-service-override/worker",
@@ -288,6 +288,7 @@ const commonServices: IEditorOverrideServices = {
   ...getConfigurationServiceOverride(),
   ...getKeybindingsServiceOverride(),
   ...getTextmateServiceOverride(),
+  ...getTreeSitterServiceOverride(),
   ...getThemeServiceOverride(),
   ...getLanguagesServiceOverride(),
   ...getDebugServiceOverride(),
