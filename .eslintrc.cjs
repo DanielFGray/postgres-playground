@@ -35,7 +35,7 @@ module.exports = {
     {
       files: ["./server/**/*.ts"],
       parser: "@typescript-eslint/parser",
-      plugins: ["@typescript-eslint", "@ts-safeql/eslint-plugin"],
+      plugins: ["@typescript-eslint"],
     },
   ],
   rules: {
@@ -49,21 +49,5 @@ module.exports = {
     "valid-jsdoc": "warn",
     "@typescript-eslint/no-unused-vars": "off", // typescript does this anyway
     "@typescript-eslint/no-explicit-any": "warn",
-    "@ts-safeql/check-sql": [
-      "error",
-      {
-        connections: [
-          {
-            databaseUrl: process.env.DATABASE_URL,
-            targets: [
-              {
-                tag: "sql",
-                transform: "{type}[]",
-              },
-            ],
-          },
-        ],
-      },
-    ],
   },
 };

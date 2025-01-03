@@ -158,7 +158,6 @@
   },
   "devDependencies": {
     "@codingame/esbuild-import-meta-url-plugin": "^1.0.2",
-    "@ts-safeql/eslint-plugin": "^3.3.1",
     "@types/bun": "^1.1.6",
     "@types/html-to-text": "~9.0.4",
     "@types/mjml": "~4.7.4",
@@ -173,18 +172,15 @@
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-jsx-a11y": "^6.9.0",
     "inquirer": "^9.3.5",
-    "libpg-query": "^15.2.0-rc.deparse.3",
     "prettier": "^3.3.3",
     "typescript": "^5.6.2",
     "vite": "^5.3.4",
     "vite-tsconfig-paths": "^4.3.2"
   },
   "trustedDependencies": [
-    "@launchql/protobufjs",
     "cpu-features",
     "cypress",
     "esbuild",
-    "libpg-query",
     "postgres",
     "ssh2"
   ]
